@@ -202,6 +202,14 @@ public class TenantDataSourceService {
     }
     
     /**
+     * Clear cache for a specific tenant to force recreation of datasource
+     */
+    public void clearCache(String tenantId) {
+        removeTenantDataSource(tenantId);
+        logger.info("Cleared cache for tenant: {}", tenantId);
+    }
+    
+    /**
      * Get all cached tenant IDs
      */
     public java.util.Set<String> getCachedTenants() {
