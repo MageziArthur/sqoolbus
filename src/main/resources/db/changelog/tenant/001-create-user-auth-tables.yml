@@ -1,0 +1,252 @@
+databaseChangeLog:
+  - changeSet:
+      id: 1
+      author: sqoolbus
+      comment: Create permissions table
+      changes:
+        - createTable:
+            tableName: permissions
+            columns:
+              - column:
+                  name: id
+                  type: BIGINT
+                  autoIncrement: true
+                  constraints:
+                    primaryKey: true
+                    nullable: false
+              - column:
+                  name: name
+                  type: VARCHAR(100)
+                  constraints:
+                    nullable: false
+                    unique: true
+              - column:
+                  name: description
+                  type: TEXT
+              - column:
+                  name: resource
+                  type: VARCHAR(100)
+              - column:
+                  name: action
+                  type: VARCHAR(50)
+              - column:
+                  name: created_at
+                  type: TIMESTAMP
+                  defaultValueComputed: CURRENT_TIMESTAMP
+                  constraints:
+                    nullable: false
+              - column:
+                  name: updated_at
+                  type: TIMESTAMP
+                  defaultValueComputed: CURRENT_TIMESTAMP
+
+  - changeSet:
+      id: 2
+      author: sqoolbus
+      comment: Create roles table
+      changes:
+        - createTable:
+            tableName: roles
+            columns:
+              - column:
+                  name: id
+                  type: BIGINT
+                  autoIncrement: true
+                  constraints:
+                    primaryKey: true
+                    nullable: false
+              - column:
+                  name: name
+                  type: VARCHAR(100)
+                  constraints:
+                    nullable: false
+                    unique: true
+              - column:
+                  name: description
+                  type: TEXT
+              - column:
+                  name: is_system_role
+                  type: BOOLEAN
+                  defaultValue: false
+              - column:
+                  name: created_at
+                  type: TIMESTAMP
+                  defaultValueComputed: CURRENT_TIMESTAMP
+                  constraints:
+                    nullable: false
+              - column:
+                  name: updated_at
+                  type: TIMESTAMP
+                  defaultValueComputed: CURRENT_TIMESTAMP
+
+  - changeSet:
+      id: 3
+      author: sqoolbus
+      comment: Create users table
+      changes:
+        - createTable:
+            tableName: users
+            columns:
+              - column:
+                  name: id
+                  type: BIGINT
+                  autoIncrement: true
+                  constraints:
+                    primaryKey: true
+                    nullable: false
+              - column:
+                  name: username
+                  type: VARCHAR(100)
+                  constraints:
+                    nullable: false
+                    unique: true
+              - column:
+                  name: email
+                  type: VARCHAR(255)
+                  constraints:
+                    nullable: false
+                    unique: true
+              - column:
+                  name: password
+                  type: VARCHAR(255)
+                  constraints:
+                    nullable: false
+              - column:
+                  name: first_name
+                  type: VARCHAR(100)
+              - column:
+                  name: last_name
+                  type: VARCHAR(100)
+              - column:
+                  name: is_active
+                  type: BOOLEAN
+                  defaultValue: 1
+                  constraints:
+                    nullable: false
+              - column:
+                  name: is_email_verified
+                  type: BOOLEAN
+                  defaultValue: 0
+                  constraints:
+                    nullable: false
+              - column:
+                  name: last_login
+                  type: TIMESTAMP
+              - column:
+                  name: created_at
+                  type: TIMESTAMP
+                  defaultValueComputed: CURRENT_TIMESTAMP
+                  constraints:
+                    nullable: false
+              - column:
+                  name: updated_at
+                  type: TIMESTAMP
+                  defaultValueComputed: CURRENT_TIMESTAMP
+
+  - changeSet:
+      id: 4
+      author: sqoolbus
+      comment: Create role_permissions junction table
+      changes:
+        - createTable:
+            tableName: role_permissions
+            columns:
+              - column:
+                  name: role_id
+                  type: BIGINT
+                  constraints:
+                    nullable: false
+              - column:
+                  name: permission_id
+                  type: BIGINT
+                  constraints:
+                    nullable: false
+        - addPrimaryKey:
+            tableName: role_permissions
+            columnNames: role_id, permission_id
+        - addForeignKeyConstraint:
+            constraintName: fk_role_permissions_role
+            baseTableName: role_permissions
+            baseColumnNames: role_id
+            referencedTableName: roles
+            referencedColumnNames: id
+            onDelete: CASCADE
+        - addForeignKeyConstraint:
+            constraintName: fk_role_permissions_permission
+            baseTableName: role_permissions
+            baseColumnNames: permission_id
+            referencedTableName: permissions
+            referencedColumnNames: id
+            onDelete: CASCADE
+
+  - changeSet:
+      id: 5
+      author: sqoolbus
+      comment: Create user_roles junction table
+      changes:
+        - createTable:
+            tableName: user_roles
+            columns:
+              - column:
+                  name: user_id
+                  type: BIGINT
+                  constraints:
+                    nullable: false
+              - column:
+                  name: role_id
+                  type: BIGINT
+                  constraints:
+                    nullable: false
+        - addPrimaryKey:
+            tableName: user_roles
+            columnNames: user_id, role_id
+        - addForeignKeyConstraint:
+            constraintName: fk_user_roles_user
+            baseTableName: user_roles
+            baseColumnNames: user_id
+            referencedTableName: users
+            referencedColumnNames: id
+            onDelete: CASCADE
+        - addForeignKeyConstraint:
+            constraintName: fk_user_roles_role
+            baseTableName: user_roles
+            baseColumnNames: role_id
+            referencedTableName: roles
+            referencedColumnNames: id
+            onDelete: CASCADE
+
+  - changeSet:
+      id: 6
+      author: sqoolbus
+      comment: Create indexes
+      changes:
+        - createIndex:
+            indexName: idx_users_username
+            tableName: users
+            columns:
+              - column:
+                  name: username
+        - createIndex:
+            indexName: idx_users_email
+            tableName: users
+            columns:
+              - column:
+                  name: email
+        - createIndex:
+            indexName: idx_users_is_active
+            tableName: users
+            columns:
+              - column:
+                  name: is_active
+        - createIndex:
+            indexName: idx_roles_name
+            tableName: roles
+            columns:
+              - column:
+                  name: name
+        - createIndex:
+            indexName: idx_permissions_name
+            tableName: permissions
+            columns:
+              - column:
+                  name: name

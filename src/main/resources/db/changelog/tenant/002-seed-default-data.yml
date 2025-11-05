@@ -1,0 +1,246 @@
+databaseChangeLog:
+  - changeSet:
+      id: 1
+      author: sqoolbus
+      comment: Insert default permissions
+      changes:
+        - insert:
+            tableName: permissions
+            columns:
+              - column:
+                  name: name
+                  value: USER_READ
+              - column:
+                  name: description
+                  value: Read user information
+              - column:
+                  name: resource
+                  value: USER
+              - column:
+                  name: action
+                  value: READ
+              - column:
+                  name: created_at
+                  value: NOW()
+        - insert:
+            tableName: permissions
+            columns:
+              - column:
+                  name: name
+                  value: USER_WRITE
+              - column:
+                  name: description
+                  value: Create and update users
+              - column:
+                  name: resource
+                  value: USER
+              - column:
+                  name: action
+                  value: WRITE
+              - column:
+                  name: created_at
+                  value: NOW()
+        - insert:
+            tableName: permissions
+            columns:
+              - column:
+                  name: name
+                  value: USER_DELETE
+              - column:
+                  name: description
+                  value: Delete users
+              - column:
+                  name: resource
+                  value: USER
+              - column:
+                  name: action
+                  value: DELETE
+              - column:
+                  name: created_at
+                  value: NOW()
+        - insert:
+            tableName: permissions
+            columns:
+              - column:
+                  name: name
+                  value: ROLE_READ
+              - column:
+                  name: description
+                  value: Read role information
+              - column:
+                  name: resource
+                  value: ROLE
+              - column:
+                  name: action
+                  value: READ
+              - column:
+                  name: created_at
+                  value: NOW()
+        - insert:
+            tableName: permissions
+            columns:
+              - column:
+                  name: name
+                  value: ROLE_WRITE
+              - column:
+                  name: description
+                  value: Create and update roles
+              - column:
+                  name: resource
+                  value: ROLE
+              - column:
+                  name: action
+                  value: WRITE
+              - column:
+                  name: created_at
+                  value: NOW()
+        - insert:
+            tableName: permissions
+            columns:
+              - column:
+                  name: name
+                  value: TENANT_ADMIN
+              - column:
+                  name: description
+                  value: Administrative access to tenant
+              - column:
+                  name: resource
+                  value: TENANT
+              - column:
+                  name: action
+                  value: ADMIN
+              - column:
+                  name: created_at
+                  value: NOW()
+
+  - changeSet:
+      id: 2
+      author: sqoolbus
+      comment: Insert default roles
+      changes:
+        - insert:
+            tableName: roles
+            columns:
+              - column:
+                  name: name
+                  value: ADMIN
+              - column:
+                  name: description
+                  value: Administrator with full access
+              - column:
+                  name: is_system_role
+                  value: 1
+              - column:
+                  name: created_at
+                  value: NOW()
+        - insert:
+            tableName: roles
+            columns:
+              - column:
+                  name: name
+                  value: USER
+              - column:
+                  name: description
+                  value: Regular user with basic access
+              - column:
+                  name: is_system_role
+                  value: 1
+              - column:
+                  name: created_at
+                  value: NOW()
+        - insert:
+            tableName: roles
+            columns:
+              - column:
+                  name: name
+                  value: MANAGER
+              - column:
+                  name: description
+                  value: Manager with user management access
+              - column:
+                  name: is_system_role
+                  value: 1
+              - column:
+                  name: created_at
+                  value: NOW()
+
+  - changeSet:
+      id: 3
+      author: sqoolbus
+      comment: Assign permissions to ADMIN role
+      changes:
+        - sql:
+            sql: |
+              INSERT INTO role_permissions (role_id, permission_id)
+              SELECT r.id, p.id
+              FROM roles r, permissions p
+              WHERE r.name = 'ADMIN';
+
+  - changeSet:
+      id: 4
+      author: sqoolbus
+      comment: Assign basic permissions to USER role
+      changes:
+        - sql:
+            sql: |
+              INSERT INTO role_permissions (role_id, permission_id)
+              SELECT r.id, p.id
+              FROM roles r, permissions p
+              WHERE r.name = 'USER' AND p.name = 'USER_READ';
+
+  - changeSet:
+      id: 5
+      author: sqoolbus
+      comment: Assign permissions to MANAGER role
+      changes:
+        - sql:
+            sql: |
+              INSERT INTO role_permissions (role_id, permission_id)
+              SELECT r.id, p.id
+              FROM roles r, permissions p
+              WHERE r.name = 'MANAGER' AND p.name IN ('USER_READ', 'USER_WRITE', 'ROLE_READ');
+
+  - changeSet:
+      id: 6
+      author: sqoolbus
+      comment: Create default admin user
+      changes:
+        - insert:
+            tableName: users
+            columns:
+              - column:
+                  name: username
+                  value: admin
+              - column:
+                  name: email
+                  value: admin@default-sqool.com
+              - column:
+                  name: password
+                  value: $2a$10$zI01nTKPa0G1HKPmP510AuwhHRkMjnLJbUUPQ53ImgTK7uqWRtQFK
+              - column:
+                  name: first_name
+                  value: Admin
+              - column:
+                  name: last_name
+                  value: User
+              - column:
+                  name: is_active
+                  value: 1
+              - column:
+                  name: created_at
+                  valueDate: now()
+              - column:
+                  name: updated_at
+                  valueDate: now()
+
+  - changeSet:
+      id: 7
+      author: sqoolbus
+      comment: Assign ADMIN role to default admin user
+      changes:
+        - sql:
+            sql: |
+              INSERT INTO user_roles (user_id, role_id)
+              SELECT u.id, r.id
+              FROM users u, roles r
+              WHERE u.username = 'admin' AND r.name = 'ADMIN';

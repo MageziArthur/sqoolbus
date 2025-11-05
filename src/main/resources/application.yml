@@ -1,0 +1,120 @@
+spring:
+  application:
+    name: sqoolbus
+  
+  main:
+    allow-circular-references: true
+  
+  profiles:
+    active: dev
+  
+  # Master Database Configuration
+  datasource:
+    master:
+      url: jdbc:mysql://localhost:3306/sqoolbus_master?useSSL=false&allowPublicKeyRetrieval=true&serverTimezone=UTC
+      username: root
+      password: rootpassword
+      driver-class-name: com.mysql.cj.jdbc.Driver
+      hikari:
+        maximum-pool-size: 10
+        minimum-idle: 5
+        idle-timeout: 300000
+        connection-timeout: 20000
+    
+    # Default Tenant Database Configuration
+    tenant:
+      default:
+        url: jdbc:mysql://localhost:3306/default_sqool?useSSL=false&allowPublicKeyRetrieval=true&serverTimezone=UTC
+        username: root
+        password: rootpassword
+        driver-class-name: com.mysql.cj.jdbc.Driver
+        hikari:
+          maximum-pool-size: 20
+          minimum-idle: 5
+          idle-timeout: 300000
+          connection-timeout: 20000
+
+  # JPA Configuration
+  jpa:
+    hibernate:
+      ddl-auto: none # We'll use Liquibase for schema management
+    show-sql: false
+    properties:
+      hibernate:
+        dialect: org.hibernate.dialect.MySQLDialect
+        format_sql: true
+
+  # Liquibase Configuration
+  liquibase:
+    enabled: false # We'll configure it manually for multitenant support
+
+# JWT Configuration
+app:
+  jwt:
+    secret: sqoolbus-secret-key-for-jwt-token-generation-must-be-at-least-256-bits-long
+    expiration: 86400 # 24 hours in seconds
+
+# Custom Application Properties
+sqoolbus:
+  multitenancy:
+    default-tenant: default_sqool
+    tenant-header: X-Tenant-ID
+    master-datasource:
+      schema: public
+    
+# Logging Configuration
+logging:
+  level:
+    com.sqool.sqoolbus: DEBUG
+    org.springframework.security: DEBUG
+    org.hibernate.SQL: DEBUG
+    liquibase: INFO
+
+server:
+  port: 8080
+
+---
+# Development Profile
+spring:
+  config:
+    activate:
+      on-profile: dev
+  
+  datasource:
+    master:
+      url: jdbc:mysql://localhost:3306/sqoolbus_master?useSSL=false&allowPublicKeyRetrieval=true&serverTimezone=UTC
+      username: root
+      password: rootpassword
+      driver-class-name: com.mysql.cj.jdbc.Driver
+    
+    tenant:
+      default:
+        url: jdbc:mysql://localhost:3306/default_sqool?useSSL=false&allowPublicKeyRetrieval=true&serverTimezone=UTC
+        username: root
+        password: rootpassword
+        driver-class-name: com.mysql.cj.jdbc.Driver
+  
+  jpa:
+    properties:
+      hibernate:
+        dialect: org.hibernate.dialect.MySQLDialect
+  
+  h2:
+    console:
+      enabled: false
+
+---
+# Production Profile
+spring:
+  config:
+    activate:
+      on-profile: prod
+      
+  jpa:
+    show-sql: false
+    
+logging:
+  level:
+    com.sqool.sqoolbus: INFO
+    org.springframework.security: WARN
+    org.hibernate.SQL: WARN

@@ -1,0 +1,5 @@
+databaseChangeLog:
+  - include:
+      file: db/changelog/tenant/001-create-user-auth-tables.yml
+  - include:
+      file: db/changelog/tenant/002-seed-default-data.yml
