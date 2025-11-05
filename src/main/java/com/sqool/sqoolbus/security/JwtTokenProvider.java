@@ -48,6 +48,24 @@ public class JwtTokenProvider {
                 .compact();
     }
     
+    public String generateMasterToken(String username, Long userId, java.util.List<String> roles) {
+        Date now = new Date();
+        Date expiryDate = new Date(now.getTime() + jwtExpirationInSeconds * 1000L);
+        
+        Map<String, Object> claims = new HashMap<>();
+        claims.put("userId", userId);
+        claims.put("roles", roles);
+        claims.put("type", "master"); // Indicates this is a master system token
+        
+        return Jwts.builder()
+                .setSubject(username)
+                .setClaims(claims)
+                .setIssuedAt(now)
+                .setExpiration(expiryDate)
+                .signWith(getSigningKey(), SignatureAlgorithm.HS256)
+                .compact();
+    }
+    
     public String getUsernameFromToken(String token) {
         Claims claims = Jwts.parser()
                 .verifyWith(getSigningKey())
@@ -66,6 +84,32 @@ public class JwtTokenProvider {
                 .getPayload();
         
         return (String) claims.get("tenantId");
+    }
+    
+    public Long getUserIdFromToken(String token) {
+        Claims claims = Jwts.parser()
+                .verifyWith(getSigningKey())
+                .build()
+                .parseSignedClaims(token)
+                .getPayload();
+        
+        Object userId = claims.get("userId");
+        if (userId instanceof Integer) {
+            return ((Integer) userId).longValue();
+        } else if (userId instanceof Long) {
+            return (Long) userId;
+        }
+        return null;
+    }
+    
+    public String getTokenType(String token) {
+        Claims claims = Jwts.parser()
+                .verifyWith(getSigningKey())
+                .build()
+                .parseSignedClaims(token)
+                .getPayload();
+        
+        return (String) claims.get("type");
     }
     
     @SuppressWarnings("unchecked")

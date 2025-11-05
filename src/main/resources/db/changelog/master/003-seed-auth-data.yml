@@ -1,0 +1,417 @@
+databaseChangeLog:
+  - changeSet:
+      id: 003-seed-default-roles
+      author: sqoolbus
+      changes:
+        - insert:
+            tableName: roles
+            columns:
+              - column:
+                  name: name
+                  value: "SUPER_ADMIN"
+              - column:
+                  name: description
+                  value: "Super Administrator with full system access"
+              - column:
+                  name: is_active
+                  valueBoolean: true
+        - insert:
+            tableName: roles
+            columns:
+              - column:
+                  name: name
+                  value: "TENANT_ADMIN"
+              - column:
+                  name: description
+                  value: "Tenant Administrator with full tenant access"
+              - column:
+                  name: is_active
+                  valueBoolean: true
+        - insert:
+            tableName: roles
+            columns:
+              - column:
+                  name: name
+                  value: "TENANT_MANAGER"
+              - column:
+                  name: description
+                  value: "Tenant Manager with limited administrative access"
+              - column:
+                  name: is_active
+                  valueBoolean: true
+        - insert:
+            tableName: roles
+            columns:
+              - column:
+                  name: name
+                  value: "USER"
+              - column:
+                  name: description
+                  value: "Regular user with basic access"
+              - column:
+                  name: is_active
+                  valueBoolean: true
+
+  - changeSet:
+      id: 003-seed-default-permissions
+      author: sqoolbus
+      changes:
+        # System-level permissions
+        - insert:
+            tableName: permissions
+            columns:
+              - column:
+                  name: name
+                  value: "SYSTEM_ADMIN"
+              - column:
+                  name: description
+                  value: "Full system administration access"
+              - column:
+                  name: resource
+                  value: "SYSTEM"
+              - column:
+                  name: action
+                  value: "ALL"
+        
+        # Tenant management permissions
+        - insert:
+            tableName: permissions
+            columns:
+              - column:
+                  name: name
+                  value: "TENANT_CREATE"
+              - column:
+                  name: description
+                  value: "Create new tenants"
+              - column:
+                  name: resource
+                  value: "TENANT"
+              - column:
+                  name: action
+                  value: "CREATE"
+        - insert:
+            tableName: permissions
+            columns:
+              - column:
+                  name: name
+                  value: "TENANT_READ"
+              - column:
+                  name: description
+                  value: "View tenant information"
+              - column:
+                  name: resource
+                  value: "TENANT"
+              - column:
+                  name: action
+                  value: "READ"
+        - insert:
+            tableName: permissions
+            columns:
+              - column:
+                  name: name
+                  value: "TENANT_UPDATE"
+              - column:
+                  name: description
+                  value: "Update tenant information"
+              - column:
+                  name: resource
+                  value: "TENANT"
+              - column:
+                  name: action
+                  value: "UPDATE"
+        - insert:
+            tableName: permissions
+            columns:
+              - column:
+                  name: name
+                  value: "TENANT_DELETE"
+              - column:
+                  name: description
+                  value: "Delete tenants"
+              - column:
+                  name: resource
+                  value: "TENANT"
+              - column:
+                  name: action
+                  value: "DELETE"
+        - insert:
+            tableName: permissions
+            columns:
+              - column:
+                  name: name
+                  value: "TENANT_SETUP"
+              - column:
+                  name: description
+                  value: "Setup tenant databases"
+              - column:
+                  name: resource
+                  value: "TENANT"
+              - column:
+                  name: action
+                  value: "SETUP"
+        
+        # User management permissions
+        - insert:
+            tableName: permissions
+            columns:
+              - column:
+                  name: name
+                  value: "USER_CREATE"
+              - column:
+                  name: description
+                  value: "Create new users"
+              - column:
+                  name: resource
+                  value: "USER"
+              - column:
+                  name: action
+                  value: "CREATE"
+        - insert:
+            tableName: permissions
+            columns:
+              - column:
+                  name: name
+                  value: "USER_READ"
+              - column:
+                  name: description
+                  value: "View user information"
+              - column:
+                  name: resource
+                  value: "USER"
+              - column:
+                  name: action
+                  value: "READ"
+        - insert:
+            tableName: permissions
+            columns:
+              - column:
+                  name: name
+                  value: "USER_UPDATE"
+              - column:
+                  name: description
+                  value: "Update user information"
+              - column:
+                  name: resource
+                  value: "USER"
+              - column:
+                  name: action
+                  value: "UPDATE"
+        - insert:
+            tableName: permissions
+            columns:
+              - column:
+                  name: name
+                  value: "USER_DELETE"
+              - column:
+                  name: description
+                  value: "Delete users"
+              - column:
+                  name: resource
+                  value: "USER"
+              - column:
+                  name: action
+                  value: "DELETE"
+        
+        # Role management permissions
+        - insert:
+            tableName: permissions
+            columns:
+              - column:
+                  name: name
+                  value: "ROLE_ASSIGN"
+              - column:
+                  name: description
+                  value: "Assign roles to users"
+              - column:
+                  name: resource
+                  value: "ROLE"
+              - column:
+                  name: action
+                  value: "ASSIGN"
+        - insert:
+            tableName: permissions
+            columns:
+              - column:
+                  name: name
+                  value: "ROLE_REVOKE"
+              - column:
+                  name: description
+                  value: "Revoke roles from users"
+              - column:
+                  name: resource
+                  value: "ROLE"
+              - column:
+                  name: action
+                  value: "REVOKE"
+
+  - changeSet:
+      id: 003-assign-permissions-to-roles
+      author: sqoolbus
+      changes:
+        # Super Admin gets all permissions
+        - insert:
+            tableName: role_permissions
+            columns:
+              - column:
+                  name: role_id
+                  valueComputed: "(SELECT id FROM roles WHERE name = 'SUPER_ADMIN')"
+              - column:
+                  name: permission_id
+                  valueComputed: "(SELECT id FROM permissions WHERE name = 'SYSTEM_ADMIN')"
+        
+        # Tenant Admin gets tenant and user management permissions
+        - insert:
+            tableName: role_permissions
+            columns:
+              - column:
+                  name: role_id
+                  valueComputed: "(SELECT id FROM roles WHERE name = 'TENANT_ADMIN')"
+              - column:
+                  name: permission_id
+                  valueComputed: "(SELECT id FROM permissions WHERE name = 'TENANT_CREATE')"
+        - insert:
+            tableName: role_permissions
+            columns:
+              - column:
+                  name: role_id
+                  valueComputed: "(SELECT id FROM roles WHERE name = 'TENANT_ADMIN')"
+              - column:
+                  name: permission_id
+                  valueComputed: "(SELECT id FROM permissions WHERE name = 'TENANT_READ')"
+        - insert:
+            tableName: role_permissions
+            columns:
+              - column:
+                  name: role_id
+                  valueComputed: "(SELECT id FROM roles WHERE name = 'TENANT_ADMIN')"
+              - column:
+                  name: permission_id
+                  valueComputed: "(SELECT id FROM permissions WHERE name = 'TENANT_UPDATE')"
+        - insert:
+            tableName: role_permissions
+            columns:
+              - column:
+                  name: role_id
+                  valueComputed: "(SELECT id FROM roles WHERE name = 'TENANT_ADMIN')"
+              - column:
+                  name: permission_id
+                  valueComputed: "(SELECT id FROM permissions WHERE name = 'TENANT_SETUP')"
+        - insert:
+            tableName: role_permissions
+            columns:
+              - column:
+                  name: role_id
+                  valueComputed: "(SELECT id FROM roles WHERE name = 'TENANT_ADMIN')"
+              - column:
+                  name: permission_id
+                  valueComputed: "(SELECT id FROM permissions WHERE name = 'USER_CREATE')"
+        - insert:
+            tableName: role_permissions
+            columns:
+              - column:
+                  name: role_id
+                  valueComputed: "(SELECT id FROM roles WHERE name = 'TENANT_ADMIN')"
+              - column:
+                  name: permission_id
+                  valueComputed: "(SELECT id FROM permissions WHERE name = 'USER_READ')"
+        - insert:
+            tableName: role_permissions
+            columns:
+              - column:
+                  name: role_id
+                  valueComputed: "(SELECT id FROM roles WHERE name = 'TENANT_ADMIN')"
+              - column:
+                  name: permission_id
+                  valueComputed: "(SELECT id FROM permissions WHERE name = 'USER_UPDATE')"
+        - insert:
+            tableName: role_permissions
+            columns:
+              - column:
+                  name: role_id
+                  valueComputed: "(SELECT id FROM roles WHERE name = 'TENANT_ADMIN')"
+              - column:
+                  name: permission_id
+                  valueComputed: "(SELECT id FROM permissions WHERE name = 'ROLE_ASSIGN')"
+        
+        # Tenant Manager gets limited permissions
+        - insert:
+            tableName: role_permissions
+            columns:
+              - column:
+                  name: role_id
+                  valueComputed: "(SELECT id FROM roles WHERE name = 'TENANT_MANAGER')"
+              - column:
+                  name: permission_id
+                  valueComputed: "(SELECT id FROM permissions WHERE name = 'TENANT_READ')"
+        - insert:
+            tableName: role_permissions
+            columns:
+              - column:
+                  name: role_id
+                  valueComputed: "(SELECT id FROM roles WHERE name = 'TENANT_MANAGER')"
+              - column:
+                  name: permission_id
+                  valueComputed: "(SELECT id FROM permissions WHERE name = 'USER_READ')"
+        - insert:
+            tableName: role_permissions
+            columns:
+              - column:
+                  name: role_id
+                  valueComputed: "(SELECT id FROM roles WHERE name = 'TENANT_MANAGER')"
+              - column:
+                  name: permission_id
+                  valueComputed: "(SELECT id FROM permissions WHERE name = 'USER_UPDATE')"
+        
+        # Regular User gets basic read permissions
+        - insert:
+            tableName: role_permissions
+            columns:
+              - column:
+                  name: role_id
+                  valueComputed: "(SELECT id FROM roles WHERE name = 'USER')"
+              - column:
+                  name: permission_id
+                  valueComputed: "(SELECT id FROM permissions WHERE name = 'USER_READ')"
+
+  - changeSet:
+      id: 003-create-default-admin-user
+      author: sqoolbus
+      changes:
+        - insert:
+            tableName: users
+            columns:
+              - column:
+                  name: username
+                  value: "superadmin"
+              - column:
+                  name: email
+                  value: "admin@sqoolbus.com"
+              - column:
+                  name: password_hash
+                  value: "$2a$10$8cjz47bjbR4Mn8GMg9IZx.vyjhLXR/SKKXD62RMMUP3v3ZZC51eRe" # Password: admin123
+              - column:
+                  name: first_name
+                  value: "Super"
+              - column:
+                  name: last_name
+                  value: "Administrator"
+              - column:
+                  name: is_active
+                  valueBoolean: true
+              - column:
+                  name: is_email_verified
+                  valueBoolean: true
+        
+        # Assign Super Admin role to default admin user
+        - insert:
+            tableName: user_roles
+            columns:
+              - column:
+                  name: user_id
+                  valueComputed: "(SELECT id FROM users WHERE username = 'superadmin')"
+              - column:
+                  name: role_id
+                  valueComputed: "(SELECT id FROM roles WHERE name = 'SUPER_ADMIN')"
+              - column:
+                  name: tenant_id
+                  value: null

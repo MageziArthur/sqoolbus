@@ -10,6 +10,7 @@ import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.beans.factory.annotation.Value;
+import org.springframework.context.annotation.Lazy;
 import org.springframework.stereotype.Service;
 
 import javax.sql.DataSource;
@@ -27,6 +28,7 @@ public class TenantDataSourceService {
     private DataSource masterDataSource;
     
     @Autowired
+    @Lazy
     private TenantRepository tenantRepository;
     
     @Value("${sqoolbus.multitenancy.default-tenant}")
@@ -70,7 +72,12 @@ public class TenantDataSourceService {
             TenantContext.clear(); // Clear to use master database
             
             try {
-                Optional<Tenant> tenantOptional = tenantRepository.findByTenantId(tenantId);
+                Optional<Tenant> tenantOptional = Optional.empty();
+                
+                // Handle the case where repository might not be initialized yet
+                if (tenantRepository != null) {
+                    tenantOptional = tenantRepository.findByTenantId(tenantId);
+                }
                 
                 if (tenantOptional.isEmpty()) {
                     // If tenant doesn't exist and it's the default tenant, create default configuration
