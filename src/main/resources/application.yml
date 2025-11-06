@@ -113,6 +113,8 @@ sqoolbus:
     name: sqoolbus_master
   tenant:
     default: default_sqool
+  security:
+    enforce-2fa: false
 
 ---
 # Production Profile

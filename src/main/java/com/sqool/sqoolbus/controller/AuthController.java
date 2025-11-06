@@ -1,11 +1,17 @@
 package com.sqool.sqoolbus.controller;
 
+import com.sqool.sqoolbus.config.SqoolbusProperties;
 import com.sqool.sqoolbus.dto.ApiResponse;
 import com.sqool.sqoolbus.dto.LoginRequest;
 import com.sqool.sqoolbus.dto.LoginResponse;
 import com.sqool.sqoolbus.dto.RegisterRequest;
+import com.sqool.sqoolbus.dto.EnhancedLoginRequest;
+import com.sqool.sqoolbus.dto.EnhancedLoginResponse;
+import com.sqool.sqoolbus.dto.OtpResponse;
+import com.sqool.sqoolbus.tenant.entity.UserOtp;
 import com.sqool.sqoolbus.security.JwtTokenProvider;
 import com.sqool.sqoolbus.service.AuthService;
+import com.sqool.sqoolbus.service.OtpService;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.Parameter;
 import io.swagger.v3.oas.annotations.media.Content;
@@ -68,6 +74,12 @@ public class AuthController {
     
     @Autowired
     private JwtTokenProvider tokenProvider;
+    
+    @Autowired
+    private OtpService otpService;
+    
+    @Autowired
+    private SqoolbusProperties sqoolbusProperties;
     
     @Value("${sqoolbus.multitenancy.default-tenant}")
     private String defaultTenant;
@@ -189,6 +201,16 @@ public class AuthController {
             logger.info("Login attempt for username: {} with tenant: {}", 
                        loginRequest.getUsername(), 
                        tenantId);
+            
+            // Check if 2FA is enforced globally
+            if (sqoolbusProperties.getSecurity().isEnforce2FA()) {
+                logger.warn("Regular login attempted but 2FA is enforced for user: {} in tenant: {}", 
+                           loginRequest.getUsername(), tenantId);
+                ApiResponse<LoginResponse> response = ApiResponse.error(
+                    "Two-factor authentication is required. Please use the enhanced login endpoint (/api/auth/login/enhanced).");
+                response.setPath(request.getRequestURI());
+                return ResponseEntity.status(HttpStatus.FORBIDDEN).body(response);
+            }
             
             LoginResponse loginResponse = authService.authenticateUser(loginRequest, tenantId);
             
@@ -492,5 +514,303 @@ public class AuthController {
         response.setPath(request.getRequestURI());
         
         return ResponseEntity.ok(response);
+    }
+    
+    /**
+     * Enhanced tenant login endpoint with 2FA support
+     */
+    @Operation(
+        summary = "Enhanced Tenant Login with 2FA",
+        description = "Enhanced authentication endpoint that supports two-factor authentication for tenant users. " +
+                     "Can handle both single-step login (without 2FA) and two-step login (with 2FA). " +
+                     "When 2FA is enabled, first call authenticates credentials and sends OTP, " +
+                     "second call with OTP code completes the authentication.",
+        tags = {"Authentication"}
+    )
+    @ApiResponses(value = {
+        @io.swagger.v3.oas.annotations.responses.ApiResponse(
+            responseCode = "200",
+            description = "Authentication successful or 2FA pending",
+            content = @Content(
+                mediaType = "application/json",
+                schema = @Schema(implementation = ApiResponse.class),
+                examples = {
+                    @ExampleObject(
+                        name = "Successful Login (No 2FA)",
+                        value = "{\"success\":true,\"message\":\"Authentication successful\",\"data\":{\"token\":\"eyJhbGciOiJIUzI1NiJ9...\",\"tokenType\":\"Bearer\",\"tenantId\":\"default_sqool\",\"pending2FA\":false}}"
+                    ),
+                    @ExampleObject(
+                        name = "2FA Pending",
+                        value = "{\"success\":true,\"message\":\"2FA required. OTP sent to your email.\",\"data\":{\"pending2FA\":true,\"twoFASessionId\":\"temp-123\",\"maskedDeliveryDestination\":\"us***@tenant.com\",\"otpExpiryMinutes\":5}}"
+                    )
+                }
+            )
+        ),
+        @io.swagger.v3.oas.annotations.responses.ApiResponse(
+            responseCode = "400", 
+            description = "Invalid request data"
+        ),
+        @io.swagger.v3.oas.annotations.responses.ApiResponse(
+            responseCode = "401", 
+            description = "Invalid credentials or OTP"
+        )
+    })
+    @PostMapping("/login/enhanced")
+    public ResponseEntity<ApiResponse<EnhancedLoginResponse>> enhancedLogin(
+            @Valid @RequestBody EnhancedLoginRequest request,
+            BindingResult bindingResult,
+            @Parameter(description = "Tenant ID", example = "default_sqool")
+            @RequestHeader(value = "X-Tenant-ID", defaultValue = "") String tenantId,
+            HttpServletRequest httpRequest) {
+        
+        logger.info("Enhanced tenant login attempt for user: {} with 2FA: {} for tenant: {}", 
+                   request.getUsernameOrEmail(), request.isEnable2FA(), tenantId);
+        
+        // Use default tenant if not provided
+        if (tenantId == null || tenantId.trim().isEmpty()) {
+            tenantId = defaultTenant;
+        }
+        
+        // Validate request
+        if (bindingResult.hasErrors()) {
+            String errors = bindingResult.getFieldErrors().stream()
+                .map(error -> error.getField() + ": " + error.getDefaultMessage())
+                .collect(java.util.stream.Collectors.joining(", "));
+            
+            logger.warn("Enhanced tenant login validation failed: {}", errors);
+            
+            return ResponseEntity.badRequest().body(
+                ApiResponse.<EnhancedLoginResponse>error("Validation failed")
+            );
+        }
+        
+        try {
+            // If OTP code is provided, this is step 2 of 2FA login
+            if (request.getOtpCode() != null && !request.getOtpCode().trim().isEmpty()) {
+                return handleTenantOtpVerification(request, tenantId, httpRequest);
+            }
+            
+            // Step 1: Verify credentials
+            LoginRequest loginRequest = new LoginRequest();
+            loginRequest.setUsername(request.getUsernameOrEmail());
+            loginRequest.setPassword(request.getPassword());
+            LoginResponse authResult = authService.authenticateUser(loginRequest, tenantId);
+            
+            if (authResult == null) {
+                logger.warn("Enhanced tenant login failed for user: {} in tenant: {}", request.getUsernameOrEmail(), tenantId);
+                return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body(
+                    ApiResponse.error("Invalid credentials")
+                );
+            }
+            
+            // Check if 2FA should be enforced based on configuration or user request
+            boolean require2FA = sqoolbusProperties.getSecurity().isEnforce2FA() || request.isEnable2FA();
+            
+            // If 2FA is not required, return token immediately
+            if (!require2FA) {
+                EnhancedLoginResponse.UserInfo userInfo = new EnhancedLoginResponse.UserInfo(
+                    authResult.getUser().getId(),
+                    authResult.getUser().getUsername(),
+                    authResult.getUser().getEmail(),
+                    authResult.getUser().getFirstName(),
+                    authResult.getUser().getLastName(),
+                    authResult.getUser().getRoles(),
+                    authResult.getUser().getPermissions()
+                );
+                
+                EnhancedLoginResponse response = EnhancedLoginResponse.successfulLogin(
+                    authResult.getToken(),
+                    authResult.getTokenType(),
+                    authResult.getExpiresIn(),
+                    authResult.getExpiresAt().toString(),
+                    tenantId,
+                    userInfo
+                );
+                
+                logger.info("Enhanced tenant login successful for user: {} in tenant: {} (no 2FA)", 
+                           request.getUsernameOrEmail(), tenantId);
+                return ResponseEntity.ok(
+                    ApiResponse.success("Authentication successful", response)
+                );
+            }
+            
+            // 2FA is enabled - generate and send OTP
+            return handleTenant2FAInitiation(request, authResult, tenantId, httpRequest);
+            
+        } catch (Exception e) {
+            logger.error("Unexpected error during enhanced tenant login for user {} in tenant {}: {}", 
+                        request.getUsernameOrEmail(), tenantId, e.getMessage(), e);
+            return ResponseEntity.internalServerError().body(
+                ApiResponse.error("Internal server error occurred")
+            );
+        }
+    }
+    
+    /**
+     * Handle 2FA initiation for tenant authentication
+     */
+    private ResponseEntity<ApiResponse<EnhancedLoginResponse>> handleTenant2FAInitiation(
+            EnhancedLoginRequest request, LoginResponse authResult, String tenantId, HttpServletRequest httpRequest) {
+        
+        try {
+            // Parse delivery method
+            UserOtp.DeliveryMethod deliveryMethod;
+            try {
+                deliveryMethod = UserOtp.DeliveryMethod.valueOf(request.getDeliveryMethod().toUpperCase());
+            } catch (IllegalArgumentException e) {
+                logger.warn("Invalid delivery method: {}", request.getDeliveryMethod());
+                return ResponseEntity.badRequest().body(
+                    ApiResponse.error("Invalid delivery method")
+                );
+            }
+            
+            // Get client information
+            String clientIp = getClientIpAddress(httpRequest);
+            String userAgent = httpRequest.getHeader("User-Agent");
+            
+            // Note: For tenant users, we need to use the username from the tenant database
+            // The OTP service will need to be modified to handle tenant users vs master users
+            // For now, we'll use the username, but this needs tenant-aware OTP management
+            
+            // Generate OTP using the tenant user's username
+            OtpResponse otpResult = otpService.generateOtp(
+                authResult.getUser().getUsername(), // Use tenant username
+                UserOtp.OtpType.LOGIN_2FA,
+                deliveryMethod,
+                authResult.getUser().getEmail(), // Use tenant user's email
+                clientIp,
+                userAgent
+            );
+            
+            if (!otpResult.isSuccess()) {
+                logger.warn("OTP generation failed for tenant user {}: {}", request.getUsernameOrEmail(), otpResult.getMessage());
+                return ResponseEntity.badRequest().body(
+                    ApiResponse.error(otpResult.getMessage())
+                );
+            }
+            
+            // Create 2FA pending response
+            String sessionId = "tenant-2fa-" + System.currentTimeMillis() + "-" + request.getUsernameOrEmail().hashCode();
+            
+            EnhancedLoginResponse.UserInfo userInfo = new EnhancedLoginResponse.UserInfo(
+                authResult.getUser().getId(),
+                authResult.getUser().getUsername(),
+                authResult.getUser().getEmail(),
+                authResult.getUser().getFirstName(),
+                authResult.getUser().getLastName(),
+                authResult.getUser().getRoles(),
+                authResult.getUser().getPermissions()
+            );
+            
+            EnhancedLoginResponse response = EnhancedLoginResponse.pending2FA(
+                sessionId,
+                otpResult.getMaskedDestination(),
+                otpResult.getExpiryMinutes(),
+                tenantId,
+                userInfo
+            );
+            
+            logger.info("2FA initiated for tenant user: {} in tenant: {}, OTP sent to: {}", 
+                       request.getUsernameOrEmail(), tenantId, otpResult.getMaskedDestination());
+            
+            return ResponseEntity.ok(
+                ApiResponse.success("2FA required. OTP sent to your registered email.", response)
+            );
+            
+        } catch (Exception e) {
+            logger.error("Error during tenant 2FA initiation for user {} in tenant {}: {}", 
+                        request.getUsernameOrEmail(), tenantId, e.getMessage(), e);
+            return ResponseEntity.internalServerError().body(
+                ApiResponse.error("Failed to initiate 2FA")
+            );
+        }
+    }
+    
+    /**
+     * Handle OTP verification for tenant authentication
+     */
+    private ResponseEntity<ApiResponse<EnhancedLoginResponse>> handleTenantOtpVerification(
+            EnhancedLoginRequest request, String tenantId, HttpServletRequest httpRequest) {
+        
+        try {
+            // First, authenticate the user to get their information for OTP verification
+            LoginRequest loginRequest = new LoginRequest();
+            loginRequest.setUsername(request.getUsernameOrEmail());
+            loginRequest.setPassword(request.getPassword());
+            LoginResponse authResult = authService.authenticateUser(loginRequest, tenantId);
+            
+            if (authResult == null) {
+                logger.warn("Authentication failed during OTP verification for tenant user: {} in tenant: {}", 
+                           request.getUsernameOrEmail(), tenantId);
+                return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body(
+                    ApiResponse.error("Invalid credentials")
+                );
+            }
+            
+            // Verify OTP using the tenant user's username
+            OtpResponse otpResult = otpService.verifyOtp(
+                authResult.getUser().getUsername(), // Use tenant username
+                request.getOtpCode(),
+                UserOtp.OtpType.LOGIN_2FA
+            );
+            
+            if (!otpResult.isSuccess()) {
+                logger.warn("OTP verification failed for tenant user {}: {}", request.getUsernameOrEmail(), otpResult.getMessage());
+                return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body(
+                    ApiResponse.error(otpResult.getMessage())
+                );
+            }
+            
+            // OTP verified - create successful login response
+            EnhancedLoginResponse.UserInfo userInfo = new EnhancedLoginResponse.UserInfo(
+                authResult.getUser().getId(),
+                authResult.getUser().getUsername(),
+                authResult.getUser().getEmail(),
+                authResult.getUser().getFirstName(),
+                authResult.getUser().getLastName(),
+                authResult.getUser().getRoles(),
+                authResult.getUser().getPermissions()
+            );
+            
+            EnhancedLoginResponse response = EnhancedLoginResponse.successfulLogin(
+                authResult.getToken(),
+                authResult.getTokenType(),
+                authResult.getExpiresIn(),
+                authResult.getExpiresAt().toString(),
+                tenantId,
+                userInfo
+            );
+            
+            logger.info("2FA authentication completed successfully for tenant user: {} in tenant: {}", 
+                       request.getUsernameOrEmail(), tenantId);
+            
+            return ResponseEntity.ok(
+                ApiResponse.success("Authentication successful", response)
+            );
+            
+        } catch (Exception e) {
+            logger.error("Error during tenant OTP verification for user {} in tenant {}: {}", 
+                        request.getUsernameOrEmail(), tenantId, e.getMessage(), e);
+            return ResponseEntity.internalServerError().body(
+                ApiResponse.error("Failed to verify OTP")
+            );
+        }
+    }
+    
+    /**
+     * Get client IP address from request
+     */
+    private String getClientIpAddress(HttpServletRequest request) {
+        String xForwardedFor = request.getHeader("X-Forwarded-For");
+        if (xForwardedFor != null && !xForwardedFor.isEmpty() && !"unknown".equalsIgnoreCase(xForwardedFor)) {
+            return xForwardedFor.split(",")[0];
+        }
+        
+        String xRealIp = request.getHeader("X-Real-IP");
+        if (xRealIp != null && !xRealIp.isEmpty() && !"unknown".equalsIgnoreCase(xRealIp)) {
+            return xRealIp;
+        }
+        
+        return request.getRemoteAddr();
     }
 }

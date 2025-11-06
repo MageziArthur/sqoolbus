@@ -9,6 +9,7 @@ public class SqoolbusProperties {
     
     private Database database = new Database();
     private Tenant tenant = new Tenant();
+    private Security security = new Security();
     
     public Database getDatabase() {
         return database;
@@ -24,6 +25,14 @@ public class SqoolbusProperties {
     
     public void setTenant(Tenant tenant) {
         this.tenant = tenant;
+    }
+    
+    public Security getSecurity() {
+        return security;
+    }
+    
+    public void setSecurity(Security security) {
+        this.security = security;
     }
     
     public static class Database {
@@ -83,6 +92,18 @@ public class SqoolbusProperties {
         
         public void setDefaultTenant(String defaultTenant) {
             this.defaultTenant = defaultTenant;
+        }
+    }
+    
+    public static class Security {
+        private boolean enforce2FA = false;
+        
+        public boolean isEnforce2FA() {
+            return enforce2FA;
+        }
+        
+        public void setEnforce2FA(boolean enforce2FA) {
+            this.enforce2FA = enforce2FA;
         }
     }
 }

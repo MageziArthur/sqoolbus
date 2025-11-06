@@ -1,0 +1,139 @@
+databaseChangeLog:
+  - changeSet:
+      id: 003-create-user-otps-table
+      author: sqoolbus
+      changes:
+        - createTable:
+            tableName: user_otps
+            columns:
+              - column:
+                  name: id
+                  type: BIGINT
+                  autoIncrement: true
+                  constraints:
+                    primaryKey: true
+                    nullable: false
+              - column:
+                  name: user_id
+                  type: BIGINT
+                  constraints:
+                    nullable: false
+              - column:
+                  name: otp_code
+                  type: VARCHAR(10)
+                  constraints:
+                    nullable: false
+              - column:
+                  name: otp_type
+                  type: VARCHAR(20)
+                  constraints:
+                    nullable: false
+              - column:
+                  name: delivery_method
+                  type: VARCHAR(20)
+                  constraints:
+                    nullable: false
+              - column:
+                  name: delivery_destination
+                  type: VARCHAR(255)
+                  constraints:
+                    nullable: false
+              - column:
+                  name: expires_at
+                  type: DATETIME
+                  constraints:
+                    nullable: false
+              - column:
+                  name: created_at
+                  type: DATETIME
+                  constraints:
+                    nullable: false
+              - column:
+                  name: used_at
+                  type: DATETIME
+                  constraints:
+                    nullable: true
+              - column:
+                  name: is_used
+                  type: BOOLEAN
+                  defaultValueBoolean: false
+                  constraints:
+                    nullable: false
+              - column:
+                  name: attempts
+                  type: INT
+                  defaultValueNumeric: 0
+                  constraints:
+                    nullable: false
+              - column:
+                  name: max_attempts
+                  type: INT
+                  defaultValueNumeric: 3
+                  constraints:
+                    nullable: false
+              - column:
+                  name: client_ip
+                  type: VARCHAR(45)
+                  constraints:
+                    nullable: true
+              - column:
+                  name: user_agent
+                  type: VARCHAR(500)
+                  constraints:
+                    nullable: true
+
+        - addForeignKeyConstraint:
+            baseTableName: user_otps
+            baseColumnNames: user_id
+            referencedTableName: users
+            referencedColumnNames: id
+            constraintName: fk_user_otps_user_id
+            onDelete: CASCADE
+
+  - changeSet:
+      id: 003-create-user-otps-indexes
+      author: sqoolbus
+      changes:
+        - createIndex:
+            tableName: user_otps
+            indexName: idx_user_otps_user_id
+            columns:
+              - column:
+                  name: user_id
+        
+        - createIndex:
+            tableName: user_otps
+            indexName: idx_user_otps_otp_code
+            columns:
+              - column:
+                  name: otp_code
+        
+        - createIndex:
+            tableName: user_otps
+            indexName: idx_user_otps_expires_at
+            columns:
+              - column:
+                  name: expires_at
+        
+        - createIndex:
+            tableName: user_otps
+            indexName: idx_user_otps_is_used
+            columns:
+              - column:
+                  name: is_used
+        
+        - createIndex:
+            tableName: user_otps
+            indexName: idx_user_otps_type_user
+            columns:
+              - column:
+                  name: otp_type
+              - column:
+                  name: user_id
+        
+        - createIndex:
+            tableName: user_otps
+            indexName: idx_user_otps_created_at
+            columns:
+              - column:
+                  name: created_at
