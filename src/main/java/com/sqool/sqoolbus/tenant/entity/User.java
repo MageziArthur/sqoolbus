@@ -1,5 +1,8 @@
 package com.sqool.sqoolbus.tenant.entity;
 
+import com.sqool.sqoolbus.tenant.entity.hail.UserProfile;
+import com.sqool.sqoolbus.tenant.entity.hail.Pupil;
+import com.sqool.sqoolbus.tenant.entity.hail.Trip;
 import jakarta.persistence.*;
 import jakarta.validation.constraints.Email;
 import jakarta.validation.constraints.NotBlank;
@@ -61,6 +64,15 @@ public class User implements UserDetails {
         inverseJoinColumns = @JoinColumn(name = "role_id")
     )
     private Set<Role> roles = new HashSet<>();
+    
+    @OneToOne(mappedBy = "user", fetch = FetchType.LAZY, cascade = CascadeType.ALL)
+    private UserProfile profile;
+    
+    @OneToMany(mappedBy = "parent", fetch = FetchType.LAZY)
+    private Set<Pupil> children = new HashSet<>();
+    
+    @OneToMany(mappedBy = "rider", fetch = FetchType.LAZY)
+    private Set<Trip> trips = new HashSet<>();
     
     @CreationTimestamp
     @Column(name = "created_at", nullable = false, updatable = false)
@@ -230,6 +242,82 @@ public class User implements UserDetails {
     
     public void setUpdatedAt(LocalDateTime updatedAt) {
         this.updatedAt = updatedAt;
+    }
+    
+    public UserProfile getProfile() {
+        return profile;
+    }
+    
+    public void setProfile(UserProfile profile) {
+        this.profile = profile;
+        if (profile != null) {
+            profile.setUser(this);
+        }
+    }
+    
+    public Set<Pupil> getChildren() {
+        return children;
+    }
+    
+    public void setChildren(Set<Pupil> children) {
+        this.children = children;
+    }
+    
+    public Set<Trip> getTrips() {
+        return trips;
+    }
+    
+    public void setTrips(Set<Trip> trips) {
+        this.trips = trips;
+    }
+    
+    // Utility methods for children
+    public void addChild(Pupil child) {
+        children.add(child);
+        child.setParent(this);
+    }
+    
+    public void removeChild(Pupil child) {
+        children.remove(child);
+        child.setParent(null);
+    }
+    
+    public int getNumberOfChildren() {
+        return children != null ? children.size() : 0;
+    }
+    
+    // Utility methods for trips
+    public Trip startTrip(com.sqool.sqoolbus.tenant.entity.hail.Route route, Trip.TripType tripType) {
+        if (profile == null || !profile.isQualifiedToWork()) {
+            throw new IllegalStateException("User is not qualified to start a trip");
+        }
+        
+        Trip trip = new Trip(route, this, tripType);
+        trip.startTrip();
+        trips.add(trip);
+        return trip;
+    }
+    
+    public Trip getCurrentTrip() {
+        return trips.stream()
+                .filter(Trip::isInProgress)
+                .findFirst()
+                .orElse(null);
+    }
+    
+    public boolean isCurrentlyOnTrip() {
+        return getCurrentTrip() != null;
+    }
+    
+    public boolean hasRole(String roleName) {
+        return roles.stream()
+                .anyMatch(role -> role.getName().equals(roleName));
+    }
+    
+    public boolean hasPermission(String permissionName) {
+        return roles.stream()
+                .flatMap(role -> role.getPermissions().stream())
+                .anyMatch(permission -> permission.getName().equals(permissionName));
     }
     
     public String getFullName() {

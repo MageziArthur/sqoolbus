@@ -38,18 +38,16 @@ import java.util.stream.Collectors;
 /**
  * Authentication REST Controller for SqoolBus Multitenant Application
  * 
- * This controller provides standardized authentication endpoints for the multitenant application.
- * All endpoints support tenant-specific operations using the X-Tenant-ID header.
+ * This controller provides standardized authentication endpoints for the application.
+ * All endpoints work with the default tenant configuration.
  * 
  * Features:
  * - Username or email-based authentication
  * - JWT token-based stateless authentication
- * - Multi-tenant support
  * - Comprehensive error handling and validation
  * - Detailed API documentation via OpenAPI/Swagger
  * 
  * Supported Headers:
- * - X-Tenant-ID: Specifies the tenant for the operation (optional, defaults to 'default_sqool')
  * - Authorization: Bearer token for authenticated endpoints
  * 
  * Endpoints:
@@ -489,8 +487,7 @@ public class AuthController {
         healthInfo.put("status", "UP");
         healthInfo.put("service", "Authentication Service");
         healthInfo.put("version", "1.0.0");
-        healthInfo.put("tenant", "Multi-tenant architecture enabled");
-        healthInfo.put("supportedTenants", "Use X-Tenant-ID header (defaults to 'default-sqool')");
+        healthInfo.put("tenant", "Using default tenant configuration");
         
         ApiResponse<Map<String, Object>> response = ApiResponse.success("Authentication service is running", healthInfo);
         response.setPath(request.getRequestURI());
@@ -507,8 +504,7 @@ public class AuthController {
         
         tenantInfo.put("currentTenant", currentTenant);
         tenantInfo.put("defaultTenant", "default-sqool");
-        tenantInfo.put("headerName", "X-Tenant-ID");
-        tenantInfo.put("description", "Tenant ID should be provided in the X-Tenant-ID header for all requests");
+        tenantInfo.put("description", "Application configured to use default tenant");
         
         ApiResponse<Map<String, Object>> response = ApiResponse.success("Tenant information", tenantInfo);
         response.setPath(request.getRequestURI());

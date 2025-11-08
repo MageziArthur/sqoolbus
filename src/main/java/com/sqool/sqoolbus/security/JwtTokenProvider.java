@@ -10,10 +10,7 @@ import org.springframework.stereotype.Component;
 import javax.crypto.SecretKey;
 import java.time.LocalDateTime;
 import java.time.ZoneId;
-import java.util.Date;
-import java.util.HashMap;
-import java.util.Map;
-import java.util.Set;
+import java.util.*;
 
 @Component
 public class JwtTokenProvider {
@@ -30,14 +27,18 @@ public class JwtTokenProvider {
         return Keys.hmacShaKeyFor(jwtSecret.getBytes());
     }
     
-    public String generateToken(String username, String tenantId, Set<String> roles, Set<String> permissions) {
+    public String generateToken(String username, String tenantId, Set<String> roles, Set<String> permissions, Long schoolId) {
         Date now = new Date();
         Date expiryDate = new Date(now.getTime() + jwtExpirationInSeconds * 1000L);
         
         Map<String, Object> claims = new HashMap<>();
+        claims.put("username", username);
         claims.put("tenantId", tenantId);
         claims.put("roles", roles);
         claims.put("permissions", permissions);
+        if (schoolId != null) {
+            claims.put("schoolId", schoolId);
+        }
         
         return Jwts.builder()
                 .setSubject(username)
@@ -73,7 +74,13 @@ public class JwtTokenProvider {
                 .parseSignedClaims(token)
                 .getPayload();
         
-        return claims.getSubject();
+        // First try to get username from claims, then fall back to subject
+        String username = (String) claims.get("username");
+        if (username == null || username.trim().isEmpty()) {
+            username = claims.getSubject();
+        }
+        
+        return username;
     }
     
     public String getTenantIdFromToken(String token) {
@@ -102,6 +109,22 @@ public class JwtTokenProvider {
         return null;
     }
     
+    public Long getSchoolIdFromToken(String token) {
+        Claims claims = Jwts.parser()
+                .verifyWith(getSigningKey())
+                .build()
+                .parseSignedClaims(token)
+                .getPayload();
+        
+        Object schoolId = claims.get("schoolId");
+        if (schoolId instanceof Integer) {
+            return ((Integer) schoolId).longValue();
+        } else if (schoolId instanceof Long) {
+            return (Long) schoolId;
+        }
+        return null;
+    }
+    
     public String getTokenType(String token) {
         Claims claims = Jwts.parser()
                 .verifyWith(getSigningKey())
@@ -120,7 +143,13 @@ public class JwtTokenProvider {
                 .parseSignedClaims(token)
                 .getPayload();
         
-        return (Set<String>) claims.get("roles");
+        Object rolesObj = claims.get("roles");
+        if (rolesObj instanceof List) {
+            return new HashSet<>((List<String>) rolesObj);
+        } else if (rolesObj instanceof Set) {
+            return (Set<String>) rolesObj;
+        }
+        return new HashSet<>();
     }
     
     @SuppressWarnings("unchecked")
@@ -131,7 +160,13 @@ public class JwtTokenProvider {
                 .parseSignedClaims(token)
                 .getPayload();
         
-        return (Set<String>) claims.get("permissions");
+        Object permissionsObj = claims.get("permissions");
+        if (permissionsObj instanceof List) {
+            return new HashSet<>((List<String>) permissionsObj);
+        } else if (permissionsObj instanceof Set) {
+            return (Set<String>) permissionsObj;
+        }
+        return new HashSet<>();
     }
     
     public Date getExpirationDateFromToken(String token) {

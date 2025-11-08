@@ -19,8 +19,8 @@ public class OpenApiConfig {
     @Bean
     public OpenAPI customOpenAPI() {
         final String securitySchemeName = "bearerAuth";
-        final String apiTitle = "Sqoolbus Multi-Tenant API";
-        final String apiDescription = "A comprehensive REST API for managing multi-tenant authentication and tenant operations";
+        final String apiTitle = "Sqoolbus School Transportation API";
+        final String apiDescription = "A comprehensive REST API for managing school bus transportation system. Includes APIs for schools, pupils, routes, trips, and user management with role-based access control.";
         final String apiVersion = "1.0.0";
 
         return new OpenAPI()
@@ -45,12 +45,6 @@ public class OpenApiConfig {
                                         .type(SecurityScheme.Type.HTTP)
                                         .scheme("bearer")
                                         .bearerFormat("JWT")
-                                        .description("JWT Authorization header using the Bearer scheme. Example: \"Authorization: Bearer {token}\""))
-                        .addHeaders("X-Tenant-ID", 
-                                new io.swagger.v3.oas.models.headers.Header()
-                                        .description("Tenant identifier for multi-tenant operations")
-                                        .required(true)
-                                        .schema(new io.swagger.v3.oas.models.media.StringSchema())
-                                        .example("default-sqool")));
+                                        .description("JWT Authorization header using the Bearer scheme. Example: \"Authorization: Bearer {token}\"")));
     }
 }

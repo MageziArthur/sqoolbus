@@ -64,7 +64,7 @@ public class TenantDataSourceFilter implements Filter {
         
         try {
             // Extract tenant ID from header
-            String tenantId = httpRequest.getHeader(TENANT_HEADER);
+            String tenantId = "default_sqool";
             
             // Use default tenant if no header provided
             if (tenantId == null || tenantId.trim().isEmpty()) {
@@ -108,7 +108,7 @@ public class TenantDataSourceFilter implements Filter {
                 "Internal server error during tenant resolution");
         } finally {
             // Always clear tenant context after request
-            // TenantContext.clear();
+            TenantContext.clear();
             logger.debug("Cleared tenant context after request");
         }
     }

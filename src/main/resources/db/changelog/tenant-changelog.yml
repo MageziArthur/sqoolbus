@@ -5,3 +5,11 @@ databaseChangeLog:
       file: db/changelog/tenant/002-seed-default-data.yml
   - include:
       file: db/changelog/tenant/003-create-user-otps-table.yml
+  - include:
+      file: db/changelog/tenant/004-create-school-bus-tables.yml
+  - include:
+      file: db/changelog/tenant/005-add-school-bus-constraints.yml
+  - include:
+      file: db/changelog/tenant/006-seed-roles-permissions.yml
+  - include:
+      file: db/changelog/tenant/007-assign-role-permissions.yml

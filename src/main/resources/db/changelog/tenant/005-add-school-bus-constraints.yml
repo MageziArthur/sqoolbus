@@ -1,0 +1,217 @@
+databaseChangeLog:
+  - changeSet:
+      id: 1
+      author: sqoolbus
+      comment: Add foreign key constraints for school bus tables
+      changes:
+        # User profile foreign keys
+        - addForeignKeyConstraint:
+            baseTableName: user_profile
+            baseColumnNames: user_id
+            constraintName: fk_user_profile_user
+            referencedTableName: users
+            referencedColumnNames: id
+            onDelete: CASCADE
+        
+        - addForeignKeyConstraint:
+            baseTableName: user_profile
+            baseColumnNames: school_id
+            constraintName: fk_user_profile_school
+            referencedTableName: school
+            referencedColumnNames: id
+            onDelete: SET NULL
+            
+        - addForeignKeyConstraint:
+            baseTableName: user_profile
+            baseColumnNames: assigned_route_id
+            constraintName: fk_user_profile_route
+            referencedTableName: route
+            referencedColumnNames: id
+            onDelete: SET NULL
+
+        # Route foreign keys
+        - addForeignKeyConstraint:
+            baseTableName: route
+            baseColumnNames: school_id
+            constraintName: fk_route_school
+            referencedTableName: school
+            referencedColumnNames: id
+            onDelete: CASCADE
+
+        # Pupil foreign keys
+        - addForeignKeyConstraint:
+            baseTableName: pupil
+            baseColumnNames: school_id
+            constraintName: fk_pupil_school
+            referencedTableName: school
+            referencedColumnNames: id
+            onDelete: CASCADE
+            
+        - addForeignKeyConstraint:
+            baseTableName: pupil
+            baseColumnNames: route_id
+            constraintName: fk_pupil_route
+            referencedTableName: route
+            referencedColumnNames: id
+            onDelete: SET NULL
+            
+        - addForeignKeyConstraint:
+            baseTableName: pupil
+            baseColumnNames: parent_id
+            constraintName: fk_pupil_parent
+            referencedTableName: users
+            referencedColumnNames: id
+            onDelete: SET NULL
+
+        # Trip foreign keys
+        - addForeignKeyConstraint:
+            baseTableName: trip
+            baseColumnNames: route_id
+            constraintName: fk_trip_route
+            referencedTableName: route
+            referencedColumnNames: id
+            onDelete: CASCADE
+            
+        - addForeignKeyConstraint:
+            baseTableName: trip
+            baseColumnNames: rider_id
+            constraintName: fk_trip_rider
+            referencedTableName: users
+            referencedColumnNames: id
+            onDelete: CASCADE
+            
+        - addForeignKeyConstraint:
+            baseTableName: trip
+            baseColumnNames: school_id
+            constraintName: fk_trip_school
+            referencedTableName: school
+            referencedColumnNames: id
+            onDelete: CASCADE
+
+  - changeSet:
+      id: 2
+      author: sqoolbus
+      comment: Create indexes for performance optimization
+      changes:
+        # User profile indexes
+        - createIndex:
+            indexName: idx_user_profile_user_id
+            tableName: user_profile
+            columns:
+              - column:
+                  name: user_id
+        
+        - createIndex:
+            indexName: idx_user_profile_school_id
+            tableName: user_profile
+            columns:
+              - column:
+                  name: school_id
+                  
+        - createIndex:
+            indexName: idx_user_profile_employee_id
+            tableName: user_profile
+            columns:
+              - column:
+                  name: employee_id
+
+        # Route indexes
+        - createIndex:
+            indexName: idx_route_school_id
+            tableName: route
+            columns:
+              - column:
+                  name: school_id
+                  
+        - createIndex:
+            indexName: idx_route_status
+            tableName: route
+            columns:
+              - column:
+                  name: status
+                  
+        - createIndex:
+            indexName: idx_route_is_active
+            tableName: route
+            columns:
+              - column:
+                  name: is_active
+
+        # Pupil indexes
+        - createIndex:
+            indexName: idx_pupil_school_id
+            tableName: pupil
+            columns:
+              - column:
+                  name: school_id
+                  
+        - createIndex:
+            indexName: idx_pupil_route_id
+            tableName: pupil
+            columns:
+              - column:
+                  name: route_id
+                  
+        - createIndex:
+            indexName: idx_pupil_parent_id
+            tableName: pupil
+            columns:
+              - column:
+                  name: parent_id
+                  
+        - createIndex:
+            indexName: idx_pupil_student_id
+            tableName: pupil
+            columns:
+              - column:
+                  name: student_id
+                  
+        - createIndex:
+            indexName: idx_pupil_is_active
+            tableName: pupil
+            columns:
+              - column:
+                  name: is_active
+
+        # Trip indexes
+        - createIndex:
+            indexName: idx_trip_route_id
+            tableName: trip
+            columns:
+              - column:
+                  name: route_id
+                  
+        - createIndex:
+            indexName: idx_trip_rider_id
+            tableName: trip
+            columns:
+              - column:
+                  name: rider_id
+                  
+        - createIndex:
+            indexName: idx_trip_school_id
+            tableName: trip
+            columns:
+              - column:
+                  name: school_id
+                  
+        - createIndex:
+            indexName: idx_trip_status
+            tableName: trip
+            columns:
+              - column:
+                  name: status
+                  
+        - createIndex:
+            indexName: idx_trip_date
+            tableName: trip
+            columns:
+              - column:
+                  name: trip_date
+                  
+        - createIndex:
+            indexName: idx_trip_type
+            tableName: trip
+            columns:
+              - column:
+                  name: trip_type

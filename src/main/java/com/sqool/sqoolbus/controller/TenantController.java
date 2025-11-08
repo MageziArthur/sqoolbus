@@ -169,7 +169,7 @@ public class TenantController {
     
     @Operation(
         summary = "Get Current Tenant",
-        description = "Get information about the current tenant based on X-Tenant-ID header",
+        description = "Get information about the current tenant configuration",
         tags = {"Tenant Management"}
     )
     @ApiResponses(value = {
@@ -202,7 +202,6 @@ public class TenantController {
             tenantInfo.put("tenantId", currentTenant);
             tenantInfo.put("isDefault", "default-sqool".equals(currentTenant));
             tenantInfo.put("isValid", tenantDataSourceService.isTenantValidFromDatabase(currentTenant));
-            tenantInfo.put("headerName", "X-Tenant-ID");
             tenantInfo.put("requestPath", request.getRequestURI());
             
             // Get tenant from request attributes (set by filter)

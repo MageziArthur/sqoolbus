@@ -1,0 +1,586 @@
+databaseChangeLog:
+  - changeSet:
+      id: 1
+      author: sqoolbus
+      comment: Insert standard permissions for school bus application
+      changes:
+        # User management permissions
+        - insert:
+            tableName: permissions
+            columns:
+              - column:
+                  name: name
+                  value: "MANAGE_USERS"
+              - column:
+                  name: description
+                  value: "Create, update, and delete users"
+              - column:
+                  name: resource
+                  value: "USER"
+              - column:
+                  name: action
+                  value: "MANAGE"
+        
+        - insert:
+            tableName: permissions
+            columns:
+              - column:
+                  name: name
+                  value: "VIEW_USERS"
+              - column:
+                  name: description
+                  value: "View user information"
+              - column:
+                  name: resource
+                  value: "USER"
+              - column:
+                  name: action
+                  value: "VIEW"
+
+        # School management permissions
+        - insert:
+            tableName: permissions
+            columns:
+              - column:
+                  name: name
+                  value: "MANAGE_SCHOOLS"
+              - column:
+                  name: description
+                  value: "Create, update, and delete schools"
+              - column:
+                  name: resource
+                  value: "SCHOOL"
+              - column:
+                  name: action
+                  value: "MANAGE"
+        
+        - insert:
+            tableName: permissions
+            columns:
+              - column:
+                  name: name
+                  value: "VIEW_SCHOOLS"
+              - column:
+                  name: description
+                  value: "View school information"
+              - column:
+                  name: resource
+                  value: "SCHOOL"
+              - column:
+                  name: action
+                  value: "VIEW"
+
+        # Pupil management permissions
+        - insert:
+            tableName: permissions
+            columns:
+              - column:
+                  name: name
+                  value: "MANAGE_PUPILS"
+              - column:
+                  name: description
+                  value: "Create, update, and delete pupils"
+              - column:
+                  name: resource
+                  value: "PUPIL"
+              - column:
+                  name: action
+                  value: "MANAGE"
+        
+        - insert:
+            tableName: permissions
+            columns:
+              - column:
+                  name: name
+                  value: "VIEW_PUPILS"
+              - column:
+                  name: description
+                  value: "View pupil information"
+              - column:
+                  name: resource
+                  value: "PUPIL"
+              - column:
+                  name: action
+                  value: "VIEW"
+        
+        - insert:
+            tableName: permissions
+            columns:
+              - column:
+                  name: name
+                  value: "MANAGE_OWN_CHILDREN"
+              - column:
+                  name: description
+                  value: "Manage own children information"
+              - column:
+                  name: resource
+                  value: "PUPIL"
+              - column:
+                  name: action
+                  value: "MANAGE_OWN"
+        
+        - insert:
+            tableName: permissions
+            columns:
+              - column:
+                  name: name
+                  value: "VIEW_OWN_CHILDREN"
+              - column:
+                  name: description
+                  value: "View own children information"
+              - column:
+                  name: resource
+                  value: "PUPIL"
+              - column:
+                  name: action
+                  value: "VIEW_OWN"
+
+        # Route management permissions
+        - insert:
+            tableName: permissions
+            columns:
+              - column:
+                  name: name
+                  value: "MANAGE_ROUTES"
+              - column:
+                  name: description
+                  value: "Create, update, and delete routes"
+              - column:
+                  name: resource
+                  value: "ROUTE"
+              - column:
+                  name: action
+                  value: "MANAGE"
+        
+        - insert:
+            tableName: permissions
+            columns:
+              - column:
+                  name: name
+                  value: "VIEW_ROUTES"
+              - column:
+                  name: description
+                  value: "View route information"
+              - column:
+                  name: resource
+                  value: "ROUTE"
+              - column:
+                  name: action
+                  value: "VIEW"
+        
+        - insert:
+            tableName: permissions
+            columns:
+              - column:
+                  name: name
+                  value: "ASSIGN_ROUTES"
+              - column:
+                  name: description
+                  value: "Assign routes to riders"
+              - column:
+                  name: resource
+                  value: "ROUTE"
+              - column:
+                  name: action
+                  value: "ASSIGN"
+
+        # Trip management permissions
+        - insert:
+            tableName: permissions
+            columns:
+              - column:
+                  name: name
+                  value: "START_TRIPS"
+              - column:
+                  name: description
+                  value: "Start trips for assigned routes"
+              - column:
+                  name: resource
+                  value: "TRIP"
+              - column:
+                  name: action
+                  value: "START"
+        
+        - insert:
+            tableName: permissions
+            columns:
+              - column:
+                  name: name
+                  value: "END_TRIPS"
+              - column:
+                  name: description
+                  value: "End trips for assigned routes"
+              - column:
+                  name: resource
+                  value: "TRIP"
+              - column:
+                  name: action
+                  value: "END"
+        
+        - insert:
+            tableName: permissions
+            columns:
+              - column:
+                  name: name
+                  value: "MANAGE_TRIPS"
+              - column:
+                  name: description
+                  value: "Full trip management"
+              - column:
+                  name: resource
+                  value: "TRIP"
+              - column:
+                  name: action
+                  value: "MANAGE"
+        
+        - insert:
+            tableName: permissions
+            columns:
+              - column:
+                  name: name
+                  value: "VIEW_TRIPS"
+              - column:
+                  name: description
+                  value: "View trip information"
+              - column:
+                  name: resource
+                  value: "TRIP"
+              - column:
+                  name: action
+                  value: "VIEW"
+        
+        - insert:
+            tableName: permissions
+            columns:
+              - column:
+                  name: name
+                  value: "VIEW_TRIP_HISTORY"
+              - column:
+                  name: description
+                  value: "View historical trip data"
+              - column:
+                  name: resource
+                  value: "TRIP"
+              - column:
+                  name: action
+                  value: "VIEW_HISTORY"
+
+        # Bus management permissions
+        - insert:
+            tableName: permissions
+            columns:
+              - column:
+                  name: name
+                  value: "MANAGE_BUSES"
+              - column:
+                  name: description
+                  value: "Create, update, and delete buses"
+              - column:
+                  name: resource
+                  value: "BUS"
+              - column:
+                  name: action
+                  value: "MANAGE"
+        
+        - insert:
+            tableName: permissions
+            columns:
+              - column:
+                  name: name
+                  value: "VIEW_BUSES"
+              - column:
+                  name: description
+                  value: "View bus information"
+              - column:
+                  name: resource
+                  value: "BUS"
+              - column:
+                  name: action
+                  value: "VIEW"
+
+        # Parent-specific permissions
+        - insert:
+            tableName: permissions
+            columns:
+              - column:
+                  name: name
+                  value: "TRACK_CHILD_BUS"
+              - column:
+                  name: description
+                  value: "Track child's bus location in real-time"
+              - column:
+                  name: resource
+                  value: "TRACKING"
+              - column:
+                  name: action
+                  value: "TRACK"
+        
+        - insert:
+            tableName: permissions
+            columns:
+              - column:
+                  name: name
+                  value: "RECEIVE_NOTIFICATIONS"
+              - column:
+                  name: description
+                  value: "Receive notifications about child's transportation"
+              - column:
+                  name: resource
+                  value: "NOTIFICATION"
+              - column:
+                  name: action
+                  value: "RECEIVE"
+        
+        - insert:
+            tableName: permissions
+            columns:
+              - column:
+                  name: name
+                  value: "VIEW_CHILD_SCHEDULE"
+              - column:
+                  name: description
+                  value: "View child's transportation schedule"
+              - column:
+                  name: resource
+                  value: "SCHEDULE"
+              - column:
+                  name: action
+                  value: "VIEW_CHILD"
+
+        # Rider-specific permissions
+        - insert:
+            tableName: permissions
+            columns:
+              - column:
+                  name: name
+                  value: "UPDATE_TRIP_STATUS"
+              - column:
+                  name: description
+                  value: "Update trip status and location"
+              - column:
+                  name: resource
+                  value: "TRIP"
+              - column:
+                  name: action
+                  value: "UPDATE_STATUS"
+        
+        - insert:
+            tableName: permissions
+            columns:
+              - column:
+                  name: name
+                  value: "MARK_PUPIL_PICKUP"
+              - column:
+                  name: description
+                  value: "Mark pupils as picked up or dropped off"
+              - column:
+                  name: resource
+                  value: "PUPIL"
+              - column:
+                  name: action
+                  value: "MARK_PICKUP"
+        
+        - insert:
+            tableName: permissions
+            columns:
+              - column:
+                  name: name
+                  value: "VIEW_ASSIGNED_ROUTES"
+              - column:
+                  name: description
+                  value: "View assigned routes and schedules"
+              - column:
+                  name: resource
+                  value: "ROUTE"
+              - column:
+                  name: action
+                  value: "VIEW_ASSIGNED"
+        
+        - insert:
+            tableName: permissions
+            columns:
+              - column:
+                  name: name
+                  value: "EMERGENCY_CONTACT"
+              - column:
+                  name: description
+                  value: "Contact emergency services"
+              - column:
+                  name: resource
+                  value: "EMERGENCY"
+              - column:
+                  name: action
+                  value: "CONTACT"
+
+        # Admin-specific permissions
+        - insert:
+            tableName: permissions
+            columns:
+              - column:
+                  name: name
+                  value: "MANAGE_ROLES"
+              - column:
+                  name: description
+                  value: "Create and manage user roles"
+              - column:
+                  name: resource
+                  value: "ROLE"
+              - column:
+                  name: action
+                  value: "MANAGE"
+        
+        - insert:
+            tableName: permissions
+            columns:
+              - column:
+                  name: name
+                  value: "MANAGE_PERMISSIONS"
+              - column:
+                  name: description
+                  value: "Assign permissions to roles"
+              - column:
+                  name: resource
+                  value: "PERMISSION"
+              - column:
+                  name: action
+                  value: "MANAGE"
+        
+        - insert:
+            tableName: permissions
+            columns:
+              - column:
+                  name: name
+                  value: "VIEW_REPORTS"
+              - column:
+                  name: description
+                  value: "Access system reports and analytics"
+              - column:
+                  name: resource
+                  value: "REPORT"
+              - column:
+                  name: action
+                  value: "VIEW"
+        
+        - insert:
+            tableName: permissions
+            columns:
+              - column:
+                  name: name
+                  value: "MANAGE_SETTINGS"
+              - column:
+                  name: description
+                  value: "Manage system settings"
+              - column:
+                  name: resource
+                  value: "SETTING"
+              - column:
+                  name: action
+                  value: "MANAGE"
+        
+        - insert:
+            tableName: permissions
+            columns:
+              - column:
+                  name: name
+                  value: "AUDIT_LOGS"
+              - column:
+                  name: description
+                  value: "View audit logs"
+              - column:
+                  name: resource
+                  value: "AUDIT"
+              - column:
+                  name: action
+                  value: "VIEW"
+
+        # System permissions
+        - insert:
+            tableName: permissions
+            columns:
+              - column:
+                  name: name
+                  value: "SYSTEM_ADMIN"
+              - column:
+                  name: description
+                  value: "Full system administration access"
+              - column:
+                  name: resource
+                  value: "SYSTEM"
+              - column:
+                  name: action
+                  value: "ADMIN"
+
+  - changeSet:
+      id: 2
+      author: sqoolbus
+      comment: Insert standard roles for school bus application
+      changes:
+        # Parent role
+        - insert:
+            tableName: roles
+            columns:
+              - column:
+                  name: name
+                  value: "PARENT"
+              - column:
+                  name: description
+                  value: "Parent or guardian of pupils"
+              - column:
+                  name: is_system_role
+                  value: 1
+
+        # Rider role
+        - insert:
+            tableName: roles
+            columns:
+              - column:
+                  name: name
+                  value: "RIDER"
+              - column:
+                  name: description
+                  value: "Bus driver or staff member"
+              - column:
+                  name: is_system_role
+                  value: 1
+
+        # School admin role
+        - insert:
+            tableName: roles
+            columns:
+              - column:
+                  name: name
+                  value: "SCHOOL_ADMIN"
+              - column:
+                  name: description
+                  value: "School administrator"
+              - column:
+                  name: is_system_role
+                  value: 1
+
+        # System admin role
+        - insert:
+            tableName: roles
+            columns:
+              - column:
+                  name: name
+                  value: "SYSTEM_ADMIN"
+              - column:
+                  name: description
+                  value: "System administrator"
+              - column:
+                  name: is_system_role
+                  value: 1
+
+        # Student role (for future use)
+        - insert:
+            tableName: roles
+            columns:
+              - column:
+                  name: name
+                  value: "STUDENT"
+              - column:
+                  name: description
+                  value: "Student user"
+              - column:
+                  name: is_system_role
+                  value: 1

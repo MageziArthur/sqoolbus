@@ -1,0 +1,211 @@
+databaseChangeLog:
+  - changeSet:
+      id: 1
+      author: sqoolbus
+      comment: Assign permissions to PARENT role
+      changes:
+        - sql:
+            sql: |
+              INSERT INTO role_permissions (role_id, permission_id)
+              SELECT r.id, p.id
+              FROM roles r, permissions p
+              WHERE r.name = 'PARENT'
+              AND p.name IN (
+                'VIEW_OWN_CHILDREN',
+                'MANAGE_OWN_CHILDREN',
+                'TRACK_CHILD_BUS',
+                'RECEIVE_NOTIFICATIONS',
+                'VIEW_CHILD_SCHEDULE'
+              );
+
+  - changeSet:
+      id: 2
+      author: sqoolbus
+      comment: Assign permissions to RIDER role
+      changes:
+        - sql:
+            sql: |
+              INSERT INTO role_permissions (role_id, permission_id)
+              SELECT r.id, p.id
+              FROM roles r, permissions p
+              WHERE r.name = 'RIDER'
+              AND p.name IN (
+                'START_TRIPS',
+                'END_TRIPS',
+                'UPDATE_TRIP_STATUS',
+                'MARK_PUPIL_PICKUP',
+                'VIEW_ASSIGNED_ROUTES',
+                'EMERGENCY_CONTACT',
+                'VIEW_TRIPS'
+              );
+
+  - changeSet:
+      id: 3
+      author: sqoolbus
+      comment: Assign permissions to SCHOOL_ADMIN role
+      changes:
+        - sql:
+            sql: |
+              INSERT INTO role_permissions (role_id, permission_id)
+              SELECT r.id, p.id
+              FROM roles r, permissions p
+              WHERE r.name = 'SCHOOL_ADMIN'
+              AND p.name IN (
+                'MANAGE_USERS',
+                'VIEW_USERS',
+                'MANAGE_SCHOOLS',
+                'VIEW_SCHOOLS',
+                'MANAGE_PUPILS',
+                'VIEW_PUPILS',
+                'MANAGE_ROUTES',
+                'VIEW_ROUTES',
+                'ASSIGN_ROUTES',
+                'MANAGE_TRIPS',
+                'VIEW_TRIPS',
+                'VIEW_TRIP_HISTORY',
+                'MANAGE_BUSES',
+                'VIEW_BUSES',
+                'VIEW_REPORTS',
+                'MANAGE_SETTINGS'
+              );
+
+  - changeSet:
+      id: 4
+      author: sqoolbus
+      comment: Assign all permissions to SYSTEM_ADMIN role
+      changes:
+        - sql:
+            sql: |
+              INSERT INTO role_permissions (role_id, permission_id)
+              SELECT r.id, p.id
+              FROM roles r, permissions p
+              WHERE r.name = 'SYSTEM_ADMIN';
+
+  - changeSet:
+      id: 5
+      author: sqoolbus
+      comment: Create sample school for testing
+      changes:
+        - insert:
+            tableName: school
+            columns:
+              - column:
+                  name: name
+                  value: "Greenwood Elementary School"
+              - column:
+                  name: school_code
+                  value: "GES001"
+              - column:
+                  name: school_type
+                  value: "ELEMENTARY"
+              - column:
+                  name: address
+                  value: "123 Oak Street"
+              - column:
+                  name: city
+                  value: "Springfield"
+              - column:
+                  name: state
+                  value: "IL"
+              - column:
+                  name: zip_code
+                  value: "62701"
+              - column:
+                  name: phone_number
+                  value: "(555) 123-4567"
+              - column:
+                  name: email
+                  value: "admin@greenwood.edu"
+              - column:
+                  name: principal_name
+                  value: "Dr. Sarah Johnson"
+              - column:
+                  name: principal_contact
+                  value: "(555) 123-4567"
+              - column:
+                  name: latitude
+                  value: 39.7817
+              - column:
+                  name: longitude
+                  value: -89.6501
+              - column:
+                  name: start_time
+                  value: "08:00:00"
+              - column:
+                  name: end_time
+                  value: "15:30:00"
+              - column:
+                  name: is_active
+                  value: 1
+              - column:
+                  name: created_by
+                  value: "system"
+              - column:
+                  name: modified_by
+                  value: "system"
+
+  - changeSet:
+      id: 6
+      author: sqoolbus
+      comment: Create sample route for testing
+      changes:
+        - insert:
+            tableName: route
+            columns:
+              - column:
+                  name: route_number
+                  value: "R001"
+              - column:
+                  name: route_name
+                  value: "Oak Street Route"
+              - column:
+                  name: description
+                  value: "Main pickup route through Oak Street neighborhood"
+              - column:
+                  name: route_type
+                  value: "BOTH"
+              - column:
+                  name: start_time
+                  value: "07:30:00"
+              - column:
+                  name: end_time
+                  value: "08:15:00"
+              - column:
+                  name: estimated_duration_minutes
+                  value: 45
+              - column:
+                  name: distance_km
+                  value: 12.5
+              - column:
+                  name: max_capacity
+                  value: 40
+              - column:
+                  name: pickup_instructions
+                  value: "Standard pickup at designated bus stops"
+              - column:
+                  name: status
+                  value: "ACTIVE"
+              - column:
+                  name: is_active
+                  value: 1
+              - column:
+                  name: start_latitude
+                  value: 39.7817
+              - column:
+                  name: start_longitude
+                  value: -89.6501
+              - column:
+                  name: end_latitude
+                  value: 39.7817
+              - column:
+                  name: end_longitude
+                  value: -89.6501
+              - column:
+                  name: school_id
+                  valueComputed: "(SELECT id FROM school WHERE school_code = 'GES001')"
+              - column:
+                  name: created_by
+                  value: "system"
+              - column:
+                  name: modified_by
+                  value: "system"

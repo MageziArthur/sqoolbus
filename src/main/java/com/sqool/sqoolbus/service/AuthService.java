@@ -4,6 +4,8 @@ import com.sqool.sqoolbus.config.multitenancy.TenantContext;
 import com.sqool.sqoolbus.dto.LoginRequest;
 import com.sqool.sqoolbus.dto.LoginResponse;
 import com.sqool.sqoolbus.dto.RegisterRequest;
+import com.sqool.sqoolbus.exception.AuthenticationException;
+import com.sqool.sqoolbus.exception.DuplicateResourceException;
 import com.sqool.sqoolbus.security.JwtTokenProvider;
 import com.sqool.sqoolbus.tenant.entity.User;
 import com.sqool.sqoolbus.tenant.entity.Role;
@@ -49,17 +51,17 @@ public class AuthService {
             }
             
             // Find user by username or email
-            Optional<User> userOptional = userRepository.findByUsernameOrEmailAndIsActive(loginRequest.getUsername());
+            Optional<User> userOptional = userRepository.findActiveByUsernameOrEmail(loginRequest.getUsername());
             
             if (userOptional.isEmpty()) {
-                throw new RuntimeException("User not found");
+                throw new AuthenticationException("Invalid credentials");
             }
             
             User user = userOptional.get();
             
             // Verify password
             if (!passwordEncoder.matches(loginRequest.getPassword(), user.getPassword())) {
-                throw new RuntimeException("Invalid password");
+                throw new AuthenticationException("Invalid credentials");
             }
             
             // Extract roles and permissions
@@ -72,12 +74,19 @@ public class AuthService {
                     .map(Permission::getName)
                     .collect(Collectors.toSet());
             
+            // Get school ID from user profile
+            Long schoolId = null;
+            if (user.getProfile() != null && user.getProfile().getSchool() != null) {
+                schoolId = user.getProfile().getSchool().getId();
+            }
+            
             // Generate JWT token
             String token = tokenProvider.generateToken(
                     user.getUsername(),
                     TenantContext.getTenantId(),
                     roles,
-                    permissions
+                    permissions,
+                    schoolId
             );
             
             // Create user info
@@ -116,12 +125,12 @@ public class AuthService {
             
             // Check if username already exists
             if (userRepository.findByUsername(registerRequest.getUsername()).isPresent()) {
-                throw new RuntimeException("Username is already taken: " + registerRequest.getUsername());
+                throw new DuplicateResourceException("User", "username", registerRequest.getUsername());
             }
             
             // Check if email already exists
             if (userRepository.findByEmail(registerRequest.getEmail()).isPresent()) {
-                throw new RuntimeException("Email is already registered: " + registerRequest.getEmail());
+                throw new DuplicateResourceException("User", "email", registerRequest.getEmail());
             }
             
             // Create new user
@@ -158,7 +167,8 @@ public class AuthService {
                     savedUser.getUsername(),
                     TenantContext.getTenantId(),
                     Set.of(),
-                    Set.of()
+                    Set.of(),
+                    null  // No school ID for newly registered users
             );
             
             return new LoginResponse(
