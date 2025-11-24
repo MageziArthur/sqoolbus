@@ -44,19 +44,19 @@ public interface TripRepository extends JpaRepository<Trip, Long> {
     /**
      * Find trips for today
      */
-    @Query("SELECT t FROM Trip t WHERE DATE(t.scheduledStartTime) = CURRENT_DATE")
+    @Query("SELECT t FROM Trip t WHERE DATE(t.plannedStartTime) = CURRENT_DATE")
     List<Trip> findTodaysTrips();
     
     /**
      * Find trips by date range
      */
-    @Query("SELECT t FROM Trip t WHERE t.scheduledStartTime BETWEEN :startDate AND :endDate")
+    @Query("SELECT t FROM Trip t WHERE t.plannedStartTime BETWEEN :startDate AND :endDate")
     List<Trip> findByScheduledStartTimeBetween(@Param("startDate") LocalDateTime startDate, @Param("endDate") LocalDateTime endDate);
     
     /**
      * Find trips by route and date
      */
-    @Query("SELECT t FROM Trip t WHERE t.route = :route AND DATE(t.scheduledStartTime) = :date")
+    @Query("SELECT t FROM Trip t WHERE t.route = :route AND DATE(t.plannedStartTime) = :date")
     List<Trip> findByRouteAndDate(@Param("route") Route route, @Param("date") LocalDate date);
     
     /**
@@ -98,6 +98,6 @@ public interface TripRepository extends JpaRepository<Trip, Long> {
     /**
      * Count today's trips by school
      */
-    @Query("SELECT COUNT(t) FROM Trip t WHERE t.route.school.id = :schoolId AND DATE(t.scheduledStartTime) = CURRENT_DATE")
+    @Query("SELECT COUNT(t) FROM Trip t WHERE t.route.school.id = :schoolId AND DATE(t.plannedStartTime) = CURRENT_DATE")
     Long countTodaysTripsBySchoolId(@Param("schoolId") Long schoolId);
 }

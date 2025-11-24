@@ -1,0 +1,14 @@
+databaseChangeLog:
+  - changeSet:
+      id: 009-alter-active-days-column-length
+      author: system
+      changes:
+        - modifyDataType:
+            tableName: route
+            columnName: active_days
+            newDataType: VARCHAR(50)
+      rollback:
+        - modifyDataType:
+            tableName: route
+            columnName: active_days
+            newDataType: VARCHAR(20)

@@ -23,6 +23,11 @@ public interface SchoolRepository extends JpaRepository<School, Long> {
     List<School> findByIsActiveTrue();
     
     /**
+     * Find schools by type
+     */
+    List<School> findBySchoolType(String schoolType);
+    
+    /**
      * Find schools by city
      */
     List<School> findByCity(String city);

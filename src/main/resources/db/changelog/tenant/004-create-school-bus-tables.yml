@@ -353,6 +353,9 @@ databaseChangeLog:
                   name: pickup_instructions
                   type: VARCHAR(1000)
               - column:
+                  name: dropoff_instructions
+                  type: VARCHAR(1000)
+              - column:
                   name: special_requirements
                   type: VARCHAR(1000)
               - column:
@@ -361,6 +364,24 @@ databaseChangeLog:
                   defaultValue: 'ACTIVE'
                   constraints:
                     nullable: false
+              - column:
+                  name: priority_level
+                  type: INT
+                  defaultValue: 1
+              - column:
+                  name: weather_dependent
+                  type: BOOLEAN
+                  defaultValue: false
+              - column:
+                  name: seasonal_route
+                  type: BOOLEAN
+                  defaultValue: false
+              - column:
+                  name: start_location
+                  type: VARCHAR(300)
+              - column:
+                  name: end_location
+                  type: VARCHAR(300)
               - column:
                   name: is_active
                   type: BOOLEAN
@@ -372,7 +393,7 @@ databaseChangeLog:
                   type: BOOLEAN
                   defaultValue: false
               - column:
-                  name: operating_days
+                  name: active_days
                   type: VARCHAR(20)
                   defaultValue: 'WEEKDAYS'
               - column:
@@ -572,6 +593,12 @@ databaseChangeLog:
                   constraints:
                     nullable: false
               - column:
+                  name: start_location
+                  type: VARCHAR(300)
+              - column:
+                  name: end_location
+                  type: VARCHAR(300)
+              - column:
                   name: trip_date
                   type: TIMESTAMP
                   constraints:
@@ -647,6 +674,13 @@ databaseChangeLog:
                   type: VARCHAR(500)
               - column:
                   name: notes
+                  type: TEXT
+              - column:
+                  name: incident_reported
+                  type: BOOLEAN
+                  defaultValue: false
+              - column:
+                  name: incident_details
                   type: TEXT
               - column:
                   name: emergency_stops

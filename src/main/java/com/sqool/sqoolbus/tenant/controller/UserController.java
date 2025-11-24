@@ -1,5 +1,6 @@
 package com.sqool.sqoolbus.tenant.controller;
 
+import com.sqool.sqoolbus.dto.ErrorResponse;
 import com.sqool.sqoolbus.security.Permission;
 import com.sqool.sqoolbus.security.RequirePermissions;
 import com.sqool.sqoolbus.tenant.entity.User;

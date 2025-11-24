@@ -1,5 +1,6 @@
 package com.sqool.sqoolbus.tenant.controller;
 
+import com.sqool.sqoolbus.dto.ErrorResponse;
 import com.sqool.sqoolbus.security.Permission;
 import com.sqool.sqoolbus.security.RequirePermissions;
 import com.sqool.sqoolbus.tenant.entity.hail.Pupil;
@@ -22,6 +23,7 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
+import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.bind.annotation.*;
 
 import jakarta.validation.Valid;
@@ -91,6 +93,13 @@ public class PupilController {
     
     @PostMapping
     @RequirePermissions(Permission.PERM_CREATE_PUPILS)
+    @Operation(summary = "Create a new pupil", description = "Create a new pupil without parent assignment")
+    @SecurityRequirement(name = "bearerAuth")
+    @ApiResponses(value = {
+        @ApiResponse(responseCode = "201", description = "Pupil created successfully"),
+        @ApiResponse(responseCode = "400", description = "Invalid input data"),
+        @ApiResponse(responseCode = "404", description = "School not found")
+    })
     public ResponseEntity<Pupil> createPupil(@Valid @RequestBody CreatePupilRequest request) {
         try {
             Optional<School> school = schoolService.findById(request.getSchoolId());
@@ -118,25 +127,128 @@ public class PupilController {
             pupil.setSpecialNeeds(request.getSpecialNeeds());
             pupil.setSchool(school.get());
             
-            // Set parent if provided
-            if (request.getParentId() != null) {
-                User parent = userManagementService.findUserById(request.getParentId());
-                if (parent != null) {
-                    pupil.setParent(parent);
-                }
-            }
-            
-            // Set route if provided
+            // Optionally assign route if provided
             if (request.getRouteId() != null) {
                 Optional<Route> route = routeService.findById(request.getRouteId());
                 if (route.isPresent()) {
                     pupil.setRoute(route.get());
-                    pupil.setUsesBusService(true);
                 }
             }
             
             Pupil savedPupil = pupilService.save(pupil);
             return ResponseEntity.status(HttpStatus.CREATED).body(savedPupil);
+        } catch (Exception e) {
+            return ResponseEntity.badRequest().build();
+        }
+    }
+    
+    @PostMapping("/{pupilId}/assign-parent/{parentId}")
+    @RequirePermissions(Permission.PERM_UPDATE_PUPILS)
+    @Operation(summary = "Assign parent to pupil", description = "Assign a parent to an existing pupil")
+    @SecurityRequirement(name = "bearerAuth")
+    @ApiResponses(value = {
+        @ApiResponse(responseCode = "200", description = "Parent assigned successfully"),
+        @ApiResponse(responseCode = "404", description = "Pupil or parent not found")
+    })
+    public ResponseEntity<Pupil> assignParentToPupil(
+            @Parameter(description = "Pupil ID") @PathVariable Long pupilId,
+            @Parameter(description = "Parent ID") @PathVariable Long parentId) {
+        try {
+            Optional<Pupil> pupilOpt = pupilService.findById(pupilId);
+            if (!pupilOpt.isPresent()) {
+                return ResponseEntity.notFound().build();
+            }
+            
+            User parent = userManagementService.findUserById(parentId);
+            if (parent == null) {
+                return ResponseEntity.notFound().build();
+            }
+            
+            Pupil pupil = pupilOpt.get();
+            pupil.setParent(parent);
+            Pupil updatedPupil = pupilService.save(pupil);
+            return ResponseEntity.ok(updatedPupil);
+        } catch (Exception e) {
+            return ResponseEntity.badRequest().build();
+        }
+    }
+    
+    @DeleteMapping("/{pupilId}/remove-parent")
+    @RequirePermissions(Permission.PERM_UPDATE_PUPILS)
+    @Operation(summary = "Remove parent from pupil", description = "Remove the parent assignment from a pupil")
+    @SecurityRequirement(name = "bearerAuth")
+    @ApiResponses(value = {
+        @ApiResponse(responseCode = "200", description = "Parent removed successfully"),
+        @ApiResponse(responseCode = "404", description = "Pupil not found")
+    })
+    public ResponseEntity<Pupil> removeParentFromPupil(
+            @Parameter(description = "Pupil ID") @PathVariable Long pupilId) {
+        try {
+            Optional<Pupil> pupilOpt = pupilService.findById(pupilId);
+            if (!pupilOpt.isPresent()) {
+                return ResponseEntity.notFound().build();
+            }
+            
+            Pupil pupil = pupilOpt.get();
+            pupil.setParent(null);
+            Pupil updatedPupil = pupilService.save(pupil);
+            return ResponseEntity.ok(updatedPupil);
+        } catch (Exception e) {
+            return ResponseEntity.badRequest().build();
+        }
+    }
+    
+    @PostMapping("/{pupilId}/assign-route/{routeId}")
+    @RequirePermissions(Permission.PERM_ASSIGN_ROUTES)
+    @Operation(summary = "Assign route to pupil", description = "Assign a route to an existing pupil")
+    @SecurityRequirement(name = "bearerAuth")
+    @ApiResponses(value = {
+        @ApiResponse(responseCode = "200", description = "Route assigned successfully"),
+        @ApiResponse(responseCode = "404", description = "Pupil or route not found")
+    })
+    public ResponseEntity<Pupil> assignRouteToPupil(
+            @Parameter(description = "Pupil ID") @PathVariable Long pupilId,
+            @Parameter(description = "Route ID") @PathVariable Long routeId) {
+        try {
+            Optional<Pupil> pupilOpt = pupilService.findById(pupilId);
+            if (!pupilOpt.isPresent()) {
+                return ResponseEntity.notFound().build();
+            }
+            
+            Optional<Route> routeOpt = routeService.findById(routeId);
+            if (!routeOpt.isPresent()) {
+                return ResponseEntity.notFound().build();
+            }
+            
+            Pupil pupil = pupilOpt.get();
+            pupil.setRoute(routeOpt.get());
+            Pupil updatedPupil = pupilService.save(pupil);
+            return ResponseEntity.ok(updatedPupil);
+        } catch (Exception e) {
+            return ResponseEntity.badRequest().build();
+        }
+    }
+    
+    @DeleteMapping("/{pupilId}/remove-route")
+    @RequirePermissions(Permission.PERM_ASSIGN_ROUTES)
+    @Operation(summary = "Remove route from pupil", description = "Remove the route assignment from a pupil")
+    @SecurityRequirement(name = "bearerAuth")
+    @ApiResponses(value = {
+        @ApiResponse(responseCode = "200", description = "Route removed successfully"),
+        @ApiResponse(responseCode = "404", description = "Pupil not found")
+    })
+    public ResponseEntity<Pupil> removeRouteFromPupil(
+            @Parameter(description = "Pupil ID") @PathVariable Long pupilId) {
+        try {
+            Optional<Pupil> pupilOpt = pupilService.findById(pupilId);
+            if (!pupilOpt.isPresent()) {
+                return ResponseEntity.notFound().build();
+            }
+            
+            Pupil pupil = pupilOpt.get();
+            pupil.setRoute(null);
+            Pupil updatedPupil = pupilService.save(pupil);
+            return ResponseEntity.ok(updatedPupil);
         } catch (Exception e) {
             return ResponseEntity.badRequest().build();
         }
@@ -168,7 +280,7 @@ public class PupilController {
     
     @GetMapping("/grade/{gradeLevel}")
     @RequirePermissions(Permission.PERM_VIEW_PUPILS)
-    public ResponseEntity<List<Pupil>> getPupilsByGrade(@PathVariable Integer gradeLevel) {
+    public ResponseEntity<List<Pupil>> getPupilsByGrade(@PathVariable String gradeLevel) {
         List<Pupil> pupils = pupilService.findByGradeLevel(gradeLevel);
         return ResponseEntity.ok(pupils);
     }
@@ -186,7 +298,7 @@ public class PupilController {
         private String lastName;
         private String middleName;
         private String studentId;
-        private Integer gradeLevel;
+        private String gradeLevel;
         private String classSection;
         private LocalDate dateOfBirth;
         private String gender;
@@ -200,8 +312,7 @@ public class PupilController {
         private String medicalConditions;
         private String specialNeeds;
         private Long schoolId;
-        private Long parentId;
-        private Long routeId;
+        private Long routeId; // Optional: assign route during creation
         
         // Getters and setters
         public String getFirstName() { return firstName; }
@@ -216,8 +327,8 @@ public class PupilController {
         public String getStudentId() { return studentId; }
         public void setStudentId(String studentId) { this.studentId = studentId; }
         
-        public Integer getGradeLevel() { return gradeLevel; }
-        public void setGradeLevel(Integer gradeLevel) { this.gradeLevel = gradeLevel; }
+        public String getGradeLevel() { return gradeLevel; }
+        public void setGradeLevel(String gradeLevel) { this.gradeLevel = gradeLevel; }
         
         public String getClassSection() { return classSection; }
         public void setClassSection(String classSection) { this.classSection = classSection; }
@@ -257,9 +368,6 @@ public class PupilController {
         
         public Long getSchoolId() { return schoolId; }
         public void setSchoolId(Long schoolId) { this.schoolId = schoolId; }
-        
-        public Long getParentId() { return parentId; }
-        public void setParentId(Long parentId) { this.parentId = parentId; }
         
         public Long getRouteId() { return routeId; }
         public void setRouteId(Long routeId) { this.routeId = routeId; }

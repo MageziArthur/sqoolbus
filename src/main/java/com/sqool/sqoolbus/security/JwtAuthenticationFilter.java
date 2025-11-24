@@ -36,6 +36,9 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
     
     @Autowired
     private UserRepository userRepository;
+    
+    @Autowired
+    private ActivityTrackingService activityTrackingService;
 
     @Override
     protected void doFilterInternal(HttpServletRequest request, HttpServletResponse response, FilterChain filterChain)
@@ -59,6 +62,24 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
                     filterChain.doFilter(request, response);
                     return;
                 }
+                
+                // Check for inactivity timeout
+                String sessionKey = activityTrackingService.createSessionKey(username, tenantId);
+                if (activityTrackingService.isSessionInactive(sessionKey)) {
+                    logger.warn("Session inactive due to timeout for user: {} in tenant: {}", username, tenantId);
+                    
+                    // Remove the inactive session
+                    activityTrackingService.removeSession(sessionKey);
+                    
+                    // Return 401 Unauthorized for inactive session
+                    response.setStatus(HttpServletResponse.SC_UNAUTHORIZED);
+                    response.setContentType("application/json");
+                    response.getWriter().write("{\"error\":\"Session expired due to inactivity\",\"code\":\"SESSION_INACTIVE\"}");
+                    return;
+                }
+                
+                // Update user activity for valid requests
+                activityTrackingService.updateActivity(sessionKey);
                 
                 // Set tenant context if available
                 if (tenantId != null) {

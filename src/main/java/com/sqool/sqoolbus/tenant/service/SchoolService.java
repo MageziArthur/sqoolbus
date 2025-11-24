@@ -1,5 +1,6 @@
 package com.sqool.sqoolbus.tenant.service;
 
+import com.sqool.sqoolbus.dto.CreateSchoolRequest;
 import com.sqool.sqoolbus.exception.ResourceNotFoundException;
 import com.sqool.sqoolbus.security.SecurityUtils;
 import com.sqool.sqoolbus.tenant.entity.hail.School;
@@ -8,6 +9,9 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.time.LocalDate;
+import java.time.LocalTime;
+import java.time.format.DateTimeFormatter;
 import java.util.List;
 import java.util.Optional;
 
@@ -54,12 +58,36 @@ public class SchoolService {
     }
     
     public List<School> findByType(String schoolType) {
-        // Note: School entity doesn't have schoolType field
-        // Return all schools for now
-        return schoolRepository.findAll();
+        return schoolRepository.findBySchoolType(schoolType);
     }
     
     public School save(School school) {
+        return schoolRepository.save(school);
+    }
+    
+    public School createSchool(CreateSchoolRequest request) {
+        School school = new School();
+        school.setName(request.getName());
+        school.setCode(request.getCode());
+        school.setAddress(request.getAddress());
+        school.setSchoolType(request.getSchoolType());
+        school.setPhoneNumber(request.getPhoneNumber());
+        school.setEmail(request.getEmail());
+        school.setWebsite(request.getWebsite());
+        school.setPrincipalName(request.getPrincipalName());
+        school.setPrincipalContact(request.getPrincipalContact());
+        school.setCity(request.getCity());
+        school.setState(request.getState());
+        school.setZipCode(request.getZipCode());
+        school.setCountry(request.getCountry() != null ? request.getCountry() : "USA");
+        school.setLatitude(request.getLatitude());
+        school.setLongitude(request.getLongitude());
+        school.setTimezone(request.getTimezone() != null ? request.getTimezone() : "America/New_York");
+        school.setIsActive(request.getIsActive() != null ? request.getIsActive() : true);
+        school.setStartTime(request.getStartTime());
+        school.setEndTime(request.getEndTime());
+        school.setEstablishedDate(request.getEstablishedDate());
+        
         return schoolRepository.save(school);
     }
     
@@ -71,7 +99,7 @@ public class SchoolService {
         existingSchool.setName(schoolDetails.getName());
         existingSchool.setCode(schoolDetails.getCode());
         existingSchool.setAddress(schoolDetails.getAddress());
-        existingSchool.setPhone(schoolDetails.getPhone());
+        existingSchool.setPhoneNumber(schoolDetails.getPhoneNumber());
         existingSchool.setEmail(schoolDetails.getEmail());
         existingSchool.setCity(schoolDetails.getCity());
         existingSchool.setState(schoolDetails.getState());
@@ -79,7 +107,12 @@ public class SchoolService {
         existingSchool.setLatitude(schoolDetails.getLatitude());
         existingSchool.setLongitude(schoolDetails.getLongitude());
         existingSchool.setTimezone(schoolDetails.getTimezone());
-        existingSchool.setSchoolYear(schoolDetails.getSchoolYear());
+        existingSchool.setSchoolType(schoolDetails.getSchoolType());
+        existingSchool.setWebsite(schoolDetails.getWebsite());
+        existingSchool.setPrincipalContact(schoolDetails.getPrincipalContact());
+        existingSchool.setStartTime(schoolDetails.getStartTime());
+        existingSchool.setEndTime(schoolDetails.getEndTime());
+        existingSchool.setEstablishedDate(schoolDetails.getEstablishedDate());
         existingSchool.setIsActive(schoolDetails.getIsActive());
         
         return schoolRepository.save(existingSchool);

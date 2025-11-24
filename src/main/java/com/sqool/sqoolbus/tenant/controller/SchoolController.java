@@ -1,5 +1,6 @@
 package com.sqool.sqoolbus.tenant.controller;
 
+import com.sqool.sqoolbus.dto.ErrorResponse;
 import com.sqool.sqoolbus.security.Permission;
 import com.sqool.sqoolbus.security.RequirePermissions;
 import com.sqool.sqoolbus.tenant.entity.hail.School;
@@ -42,9 +43,15 @@ public class SchoolController {
         @ApiResponse(responseCode = "200", description = "Successfully retrieved schools",
                     content = @Content(mediaType = "application/json", 
                                      schema = @Schema(implementation = School.class))),
-        @ApiResponse(responseCode = "401", description = "Unauthorized"),
-        @ApiResponse(responseCode = "403", description = "Forbidden"),
-        @ApiResponse(responseCode = "500", description = "Internal server error")
+        @ApiResponse(responseCode = "401", description = "Unauthorized",
+                    content = @Content(mediaType = "application/json",
+                                     schema = @Schema(implementation = ErrorResponse.class))),
+        @ApiResponse(responseCode = "403", description = "Forbidden",
+                    content = @Content(mediaType = "application/json",
+                                     schema = @Schema(implementation = ErrorResponse.class))),
+        @ApiResponse(responseCode = "500", description = "Internal server error",
+                    content = @Content(mediaType = "application/json",
+                                     schema = @Schema(implementation = ErrorResponse.class)))
     })
     public ResponseEntity<List<School>> getAllSchools() {
         List<School> schools = schoolService.findAll();
@@ -58,8 +65,12 @@ public class SchoolController {
         @ApiResponse(responseCode = "200", description = "School found",
                     content = @Content(mediaType = "application/json", 
                                      schema = @Schema(implementation = School.class))),
-        @ApiResponse(responseCode = "404", description = "School not found"),
-        @ApiResponse(responseCode = "500", description = "Internal server error")
+        @ApiResponse(responseCode = "404", description = "School not found",
+                    content = @Content(mediaType = "application/json",
+                                     schema = @Schema(implementation = ErrorResponse.class))),
+        @ApiResponse(responseCode = "500", description = "Internal server error",
+                    content = @Content(mediaType = "application/json",
+                                     schema = @Schema(implementation = ErrorResponse.class)))
     })
     public ResponseEntity<School> getSchoolById(
             @Parameter(description = "ID of the school to retrieve", required = true)
@@ -76,8 +87,12 @@ public class SchoolController {
         @ApiResponse(responseCode = "200", description = "School found",
                     content = @Content(mediaType = "application/json", 
                                      schema = @Schema(implementation = School.class))),
-        @ApiResponse(responseCode = "404", description = "School not found"),
-        @ApiResponse(responseCode = "500", description = "Internal server error")
+        @ApiResponse(responseCode = "404", description = "School not found",
+                    content = @Content(mediaType = "application/json",
+                                     schema = @Schema(implementation = ErrorResponse.class))),
+        @ApiResponse(responseCode = "500", description = "Internal server error",
+                    content = @Content(mediaType = "application/json",
+                                     schema = @Schema(implementation = ErrorResponse.class)))
     })
     public ResponseEntity<School> getSchoolByCode(
             @Parameter(description = "School code to search for", required = true)
@@ -95,16 +110,24 @@ public class SchoolController {
         @ApiResponse(responseCode = "201", description = "School created successfully",
                     content = @Content(mediaType = "application/json", 
                                      schema = @Schema(implementation = School.class))),
-        @ApiResponse(responseCode = "400", description = "Invalid input data"),
-        @ApiResponse(responseCode = "401", description = "Unauthorized"),
-        @ApiResponse(responseCode = "403", description = "Forbidden"),
-        @ApiResponse(responseCode = "500", description = "Internal server error")
+        @ApiResponse(responseCode = "400", description = "Invalid input data",
+                    content = @Content(mediaType = "application/json",
+                                     schema = @Schema(implementation = ErrorResponse.class))),
+        @ApiResponse(responseCode = "401", description = "Unauthorized",
+                    content = @Content(mediaType = "application/json",
+                                     schema = @Schema(implementation = ErrorResponse.class))),
+        @ApiResponse(responseCode = "403", description = "Forbidden",
+                    content = @Content(mediaType = "application/json",
+                                     schema = @Schema(implementation = ErrorResponse.class))),
+        @ApiResponse(responseCode = "500", description = "Internal server error",
+                    content = @Content(mediaType = "application/json",
+                                     schema = @Schema(implementation = ErrorResponse.class)))
     })
     public ResponseEntity<School> createSchool(
             @Parameter(description = "School data to create", required = true)
-            @Valid @RequestBody School school) {
+            @Valid @RequestBody com.sqool.sqoolbus.dto.CreateSchoolRequest request) {
         try {
-            School savedSchool = schoolService.save(school);
+            School savedSchool = schoolService.createSchool(request);
             return ResponseEntity.status(HttpStatus.CREATED).body(savedSchool);
         } catch (Exception e) {
             return ResponseEntity.badRequest().build();
@@ -118,9 +141,15 @@ public class SchoolController {
         @ApiResponse(responseCode = "200", description = "School updated successfully",
                     content = @Content(mediaType = "application/json", 
                                      schema = @Schema(implementation = School.class))),
-        @ApiResponse(responseCode = "404", description = "School not found"),
-        @ApiResponse(responseCode = "400", description = "Invalid input data"),
-        @ApiResponse(responseCode = "500", description = "Internal server error")
+        @ApiResponse(responseCode = "404", description = "School not found",
+                    content = @Content(mediaType = "application/json",
+                                     schema = @Schema(implementation = ErrorResponse.class))),
+        @ApiResponse(responseCode = "400", description = "Invalid input data",
+                    content = @Content(mediaType = "application/json",
+                                     schema = @Schema(implementation = ErrorResponse.class))),
+        @ApiResponse(responseCode = "500", description = "Internal server error",
+                    content = @Content(mediaType = "application/json",
+                                     schema = @Schema(implementation = ErrorResponse.class)))
     })
     public ResponseEntity<School> updateSchool(
             @Parameter(description = "ID of the school to update", required = true)
@@ -143,10 +172,18 @@ public class SchoolController {
     @SecurityRequirement(name = "bearerAuth")
     @ApiResponses(value = {
         @ApiResponse(responseCode = "200", description = "School deleted successfully"),
-        @ApiResponse(responseCode = "404", description = "School not found"),
-        @ApiResponse(responseCode = "401", description = "Unauthorized"),
-        @ApiResponse(responseCode = "403", description = "Forbidden"),
-        @ApiResponse(responseCode = "500", description = "Internal server error")
+        @ApiResponse(responseCode = "404", description = "School not found",
+                    content = @Content(mediaType = "application/json",
+                                     schema = @Schema(implementation = ErrorResponse.class))),
+        @ApiResponse(responseCode = "401", description = "Unauthorized",
+                    content = @Content(mediaType = "application/json",
+                                     schema = @Schema(implementation = ErrorResponse.class))),
+        @ApiResponse(responseCode = "403", description = "Forbidden",
+                    content = @Content(mediaType = "application/json",
+                                     schema = @Schema(implementation = ErrorResponse.class))),
+        @ApiResponse(responseCode = "500", description = "Internal server error",
+                    content = @Content(mediaType = "application/json",
+                                     schema = @Schema(implementation = ErrorResponse.class)))
     })
     public ResponseEntity<Void> deleteSchool(
             @Parameter(description = "ID of the school to delete", required = true)

@@ -1,5 +1,7 @@
 package com.sqool.sqoolbus.tenant.entity.hail;
 
+import com.fasterxml.jackson.annotation.JsonIgnore;
+import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
 import com.sqool.sqoolbus.tenant.entity.BaseEntity;
 import com.sqool.sqoolbus.tenant.entity.User;
 import jakarta.persistence.*;
@@ -52,7 +54,7 @@ public class Route extends BaseEntity {
     @Column(name = "dropoff_instructions", length = 1000)
     private String dropoffInstructions;
     
-    @Column(name = "active_days", length = 20)
+    @Column(name = "active_days", length = 50)
     private String activeDays = "MONDAY,TUESDAY,WEDNESDAY,THURSDAY,FRIDAY"; // Comma-separated
     
     @Enumerated(EnumType.STRING)
@@ -89,11 +91,12 @@ public class Route extends BaseEntity {
     @Column(name = "end_longitude")
     private Double endLongitude;
     
-    @ManyToOne(fetch = FetchType.LAZY)
+    @ManyToOne(fetch = FetchType.EAGER)
     @JoinColumn(name = "school_id", nullable = false)
     private School school;
     
     @OneToMany(mappedBy = "route", cascade = CascadeType.ALL, fetch = FetchType.LAZY)
+    @JsonIgnore
     private List<Pupil> pupils = new ArrayList<>();
     
     // Removed riders mapping to fix startup error
@@ -101,6 +104,7 @@ public class Route extends BaseEntity {
     // private List<User> riders = new ArrayList<>();
     
     @OneToMany(mappedBy = "route", fetch = FetchType.LAZY, cascade = CascadeType.ALL)
+    @JsonIgnore
     private List<Trip> trips = new ArrayList<>();
     
     // Enums

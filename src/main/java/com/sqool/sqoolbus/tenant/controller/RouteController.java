@@ -1,5 +1,8 @@
 package com.sqool.sqoolbus.tenant.controller;
 
+import com.fasterxml.jackson.databind.annotation.JsonDeserialize;
+import com.sqool.sqoolbus.config.FlexibleLocalTimeDeserializer;
+import com.sqool.sqoolbus.dto.ErrorResponse;
 import com.sqool.sqoolbus.security.Permission;
 import com.sqool.sqoolbus.security.RequirePermissions;
 import com.sqool.sqoolbus.tenant.entity.hail.Route;
@@ -21,6 +24,7 @@ import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.*;
 
 import jakarta.validation.Valid;
+import java.time.LocalTime;
 import java.util.List;
 import java.util.Optional;
 
@@ -47,9 +51,15 @@ public class RouteController {
         @ApiResponse(responseCode = "200", description = "Successfully retrieved routes",
                     content = @Content(mediaType = "application/json", 
                                      schema = @Schema(implementation = Route.class))),
-        @ApiResponse(responseCode = "401", description = "Unauthorized"),
-        @ApiResponse(responseCode = "403", description = "Forbidden"),
-        @ApiResponse(responseCode = "500", description = "Internal server error")
+        @ApiResponse(responseCode = "401", description = "Unauthorized",
+                    content = @Content(mediaType = "application/json",
+                                     schema = @Schema(implementation = ErrorResponse.class))),
+        @ApiResponse(responseCode = "403", description = "Forbidden",
+                    content = @Content(mediaType = "application/json",
+                                     schema = @Schema(implementation = ErrorResponse.class))),
+        @ApiResponse(responseCode = "500", description = "Internal server error",
+                    content = @Content(mediaType = "application/json",
+                                     schema = @Schema(implementation = ErrorResponse.class)))
     })
     public ResponseEntity<List<Route>> getAllRoutes() {
         List<Route> routes = routeService.findAll();
@@ -63,10 +73,18 @@ public class RouteController {
         @ApiResponse(responseCode = "200", description = "Route found",
                     content = @Content(mediaType = "application/json", 
                                      schema = @Schema(implementation = Route.class))),
-        @ApiResponse(responseCode = "401", description = "Unauthorized"),
-        @ApiResponse(responseCode = "403", description = "Forbidden"),
-        @ApiResponse(responseCode = "404", description = "Route not found"),
-        @ApiResponse(responseCode = "500", description = "Internal server error")
+        @ApiResponse(responseCode = "401", description = "Unauthorized",
+                    content = @Content(mediaType = "application/json",
+                                     schema = @Schema(implementation = ErrorResponse.class))),
+        @ApiResponse(responseCode = "403", description = "Forbidden",
+                    content = @Content(mediaType = "application/json",
+                                     schema = @Schema(implementation = ErrorResponse.class))),
+        @ApiResponse(responseCode = "404", description = "Route not found",
+                    content = @Content(mediaType = "application/json",
+                                     schema = @Schema(implementation = ErrorResponse.class))),
+        @ApiResponse(responseCode = "500", description = "Internal server error",
+                    content = @Content(mediaType = "application/json",
+                                     schema = @Schema(implementation = ErrorResponse.class)))
     })
     public ResponseEntity<Route> getRouteById(
             @Parameter(description = "ID of the route to retrieve", required = true)
@@ -86,7 +104,20 @@ public class RouteController {
     
     @GetMapping("/school/{schoolId}")
     @RequirePermissions(Permission.PERM_VIEW_ROUTES)
-    public ResponseEntity<List<Route>> getRoutesBySchool(@PathVariable Long schoolId) {
+    @Operation(summary = "Get routes by school", description = "Retrieve all routes belonging to a specific school")
+    @ApiResponses(value = {
+            @ApiResponse(responseCode = "200", description = "Routes retrieved successfully",
+                    content = @Content(mediaType = "application/json", schema = @Schema(implementation = Route.class))),
+            @ApiResponse(responseCode = "401", description = "Unauthorized - Invalid or missing authentication token",
+                    content = @Content(mediaType = "application/json", schema = @Schema(implementation = ErrorResponse.class))),
+            @ApiResponse(responseCode = "403", description = "Forbidden - User does not have permission to view routes",
+                    content = @Content(mediaType = "application/json", schema = @Schema(implementation = ErrorResponse.class))),
+            @ApiResponse(responseCode = "500", description = "Internal server error",
+                    content = @Content(mediaType = "application/json", schema = @Schema(implementation = ErrorResponse.class)))
+    })
+    public ResponseEntity<List<Route>> getRoutesBySchool(
+            @Parameter(description = "ID of the school", required = true)
+            @PathVariable Long schoolId) {
         List<Route> routes = routeService.findBySchoolId(schoolId);
         return ResponseEntity.ok(routes);
     }
@@ -125,10 +156,18 @@ public class RouteController {
     @Operation(summary = "Update route", description = "Update an existing route")
     @ApiResponses(value = {
             @ApiResponse(responseCode = "200", description = "Route updated successfully"),
-            @ApiResponse(responseCode = "404", description = "Route not found"),
-            @ApiResponse(responseCode = "401", description = "Unauthorized"),
-            @ApiResponse(responseCode = "403", description = "Forbidden"),
-            @ApiResponse(responseCode = "400", description = "Invalid input")
+            @ApiResponse(responseCode = "404", description = "Route not found",
+                        content = @Content(mediaType = "application/json",
+                                         schema = @Schema(implementation = ErrorResponse.class))),
+            @ApiResponse(responseCode = "401", description = "Unauthorized",
+                        content = @Content(mediaType = "application/json",
+                                         schema = @Schema(implementation = ErrorResponse.class))),
+            @ApiResponse(responseCode = "403", description = "Forbidden",
+                        content = @Content(mediaType = "application/json",
+                                         schema = @Schema(implementation = ErrorResponse.class))),
+            @ApiResponse(responseCode = "400", description = "Invalid input",
+                        content = @Content(mediaType = "application/json",
+                                         schema = @Schema(implementation = ErrorResponse.class)))
     })
     public ResponseEntity<Route> updateRoute(@PathVariable Long id, @Valid @RequestBody Route routeDetails) {
         Route updatedRoute = routeService.update(id, routeDetails);
@@ -165,9 +204,15 @@ public class RouteController {
     @Operation(summary = "Assign rider to route", description = "Assign a rider to a specific route")
     @ApiResponses(value = {
             @ApiResponse(responseCode = "200", description = "Rider assigned successfully"),
-            @ApiResponse(responseCode = "404", description = "Route or rider not found"),
-            @ApiResponse(responseCode = "401", description = "Unauthorized"),
-            @ApiResponse(responseCode = "403", description = "Forbidden")
+            @ApiResponse(responseCode = "404", description = "Route or rider not found",
+                        content = @Content(mediaType = "application/json",
+                                         schema = @Schema(implementation = ErrorResponse.class))),
+            @ApiResponse(responseCode = "401", description = "Unauthorized",
+                        content = @Content(mediaType = "application/json",
+                                         schema = @Schema(implementation = ErrorResponse.class))),
+            @ApiResponse(responseCode = "403", description = "Forbidden",
+                        content = @Content(mediaType = "application/json",
+                                         schema = @Schema(implementation = ErrorResponse.class)))
     })
     public ResponseEntity<Route> assignRider(@PathVariable Long id, @PathVariable Long riderId) {
         Route route = routeService.assignRider(id, riderId);
@@ -188,14 +233,67 @@ public class RouteController {
         return ResponseEntity.ok(route);
     }
     
+    @PostMapping("/{id}/assign-pupils")
+    @RequirePermissions(Permission.PERM_ASSIGN_ROUTES)
+    @Operation(summary = "Assign multiple pupils to route", description = "Assign multiple pupils to a specific route at once")
+    @SecurityRequirement(name = "bearerAuth")
+    @ApiResponses(value = {
+            @ApiResponse(responseCode = "200", description = "Pupils assigned successfully"),
+            @ApiResponse(responseCode = "404", description = "Route not found"),
+            @ApiResponse(responseCode = "400", description = "Invalid pupil IDs"),
+            @ApiResponse(responseCode = "401", description = "Unauthorized"),
+            @ApiResponse(responseCode = "403", description = "Forbidden")
+    })
+    public ResponseEntity<Route> assignMultiplePupils(
+            @Parameter(description = "Route ID") @PathVariable Long id,
+            @Parameter(description = "List of pupil IDs to assign") @RequestBody List<Long> pupilIds) {
+        try {
+            Route route = routeService.assignMultiplePupils(id, pupilIds);
+            return ResponseEntity.ok(route);
+        } catch (RuntimeException e) {
+            return ResponseEntity.notFound().build();
+        } catch (Exception e) {
+            return ResponseEntity.badRequest().build();
+        }
+    }
+    
+    @DeleteMapping("/{id}/remove-pupils")
+    @RequirePermissions(Permission.PERM_ASSIGN_ROUTES)
+    @Operation(summary = "Remove multiple pupils from route", description = "Remove multiple pupils from a specific route at once")
+    @SecurityRequirement(name = "bearerAuth")
+    @ApiResponses(value = {
+            @ApiResponse(responseCode = "200", description = "Pupils removed successfully"),
+            @ApiResponse(responseCode = "404", description = "Route not found"),
+            @ApiResponse(responseCode = "400", description = "Invalid pupil IDs"),
+            @ApiResponse(responseCode = "401", description = "Unauthorized"),
+            @ApiResponse(responseCode = "403", description = "Forbidden")
+    })
+    public ResponseEntity<Route> removeMultiplePupils(
+            @Parameter(description = "Route ID") @PathVariable Long id,
+            @Parameter(description = "List of pupil IDs to remove") @RequestBody List<Long> pupilIds) {
+        try {
+            Route route = routeService.removeMultiplePupils(id, pupilIds);
+            return ResponseEntity.ok(route);
+        } catch (RuntimeException e) {
+            return ResponseEntity.notFound().build();
+        } catch (Exception e) {
+            return ResponseEntity.badRequest().build();
+        }
+    }
+    
     // Request DTO
     public static class CreateRouteRequest {
         private String routeNumber;
         private String routeName;
         private String description;
         private String routeType;
-        private java.time.LocalTime startTime;
-        private java.time.LocalTime endTime;
+        
+        @JsonDeserialize(using = FlexibleLocalTimeDeserializer.class)
+        private LocalTime startTime;
+        
+        @JsonDeserialize(using = FlexibleLocalTimeDeserializer.class)
+        private LocalTime endTime;
+        
         private Integer estimatedDurationMinutes;
         private Double distanceKm;
         private Integer maxCapacity;
@@ -215,11 +313,11 @@ public class RouteController {
         public String getRouteType() { return routeType; }
         public void setRouteType(String routeType) { this.routeType = routeType; }
         
-        public java.time.LocalTime getStartTime() { return startTime; }
-        public void setStartTime(java.time.LocalTime startTime) { this.startTime = startTime; }
+        public LocalTime getStartTime() { return startTime; }
+        public void setStartTime(LocalTime startTime) { this.startTime = startTime; }
         
-        public java.time.LocalTime getEndTime() { return endTime; }
-        public void setEndTime(java.time.LocalTime endTime) { this.endTime = endTime; }
+        public LocalTime getEndTime() { return endTime; }
+        public void setEndTime(LocalTime endTime) { this.endTime = endTime; }
         
         public Integer getEstimatedDurationMinutes() { return estimatedDurationMinutes; }
         public void setEstimatedDurationMinutes(Integer estimatedDurationMinutes) { this.estimatedDurationMinutes = estimatedDurationMinutes; }

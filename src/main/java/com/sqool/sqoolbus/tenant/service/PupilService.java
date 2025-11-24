@@ -34,13 +34,13 @@ public class PupilService {
     public List<Pupil> findAll() {
         // If user is any admin, return all pupils
         if (SecurityUtils.isAnyAdmin()) {
-            return pupilRepository.findAll();
+            return pupilRepository.findAllWithRelationships();
         }
         
         // For school users, filter by their school
         Long schoolId = SecurityUtils.getCurrentUserSchoolId();
         if (schoolId != null) {
-            return findBySchoolId(schoolId);
+            return pupilRepository.findBySchoolIdWithRelationships(schoolId);
         }
         
         // If no school context, return empty list
@@ -59,7 +59,7 @@ public class PupilService {
         return pupilRepository.findBySchoolId(schoolId);
     }
     
-    public List<Pupil> findByGradeLevel(Integer grade) {
+    public List<Pupil> findByGradeLevel(String grade) {
         return pupilRepository.findByGradeLevel(grade);
     }
     

@@ -5,6 +5,8 @@ import com.sqool.sqoolbus.dto.ApiResponse;
 import com.sqool.sqoolbus.dto.LoginRequest;
 import com.sqool.sqoolbus.dto.LoginResponse;
 import com.sqool.sqoolbus.dto.RegisterRequest;
+import com.sqool.sqoolbus.dto.ParentSignupRequest;
+import com.sqool.sqoolbus.dto.ParentSignupResponse;
 import com.sqool.sqoolbus.dto.EnhancedLoginRequest;
 import com.sqool.sqoolbus.dto.EnhancedLoginResponse;
 import com.sqool.sqoolbus.dto.OtpResponse;
@@ -346,6 +348,123 @@ public class AuthController {
             response.setPath(request.getRequestURI());
             
             return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(response);
+        }
+    }
+    
+    /**
+     * Register a new parent user with comprehensive profile information
+     * 
+     * This endpoint creates a parent account with:
+     * - Basic user authentication details
+     * - Complete parent profile information
+     * - Automatic PARENT role assignment
+     * - School association
+     * - Contact and emergency information
+     * 
+     * @param parentSignupRequest Parent registration details including profile information
+     * @param tenantId Optional tenant identifier for multi-tenant operation
+     * @param bindingResult Validation results
+     * @param request HTTP request for logging
+     * @return ApiResponse containing parent signup response with JWT token and profile data
+     */
+    @Operation(
+        summary = "Register Parent User",
+        description = "Register a new parent user with comprehensive profile information and automatic PARENT role assignment"
+    )
+    @ApiResponses(value = {
+        @io.swagger.v3.oas.annotations.responses.ApiResponse(
+            responseCode = "201", 
+            description = "Parent registration successful",
+            content = @Content(schema = @Schema(implementation = ParentSignupResponse.class))
+        ),
+        @io.swagger.v3.oas.annotations.responses.ApiResponse(
+            responseCode = "400", 
+            description = "Invalid input data or validation errors"
+        ),
+        @io.swagger.v3.oas.annotations.responses.ApiResponse(
+            responseCode = "409", 
+            description = "Username or email already exists"
+        ),
+        @io.swagger.v3.oas.annotations.responses.ApiResponse(
+            responseCode = "404", 
+            description = "School not found"
+        ),
+        @io.swagger.v3.oas.annotations.responses.ApiResponse(
+            responseCode = "500", 
+            description = "Internal server error"
+        )
+    })
+    @PostMapping("/signup/parent")
+    public ResponseEntity<ApiResponse<ParentSignupResponse>> registerParent(
+            @io.swagger.v3.oas.annotations.parameters.RequestBody(
+                description = "Parent registration details with profile information",
+                required = true,
+                content = @Content(
+                    schema = @Schema(implementation = ParentSignupRequest.class),
+                    examples = @ExampleObject(
+                        value = "{\"username\":\"parent_user\",\"email\":\"parent@example.com\",\"password\":\"password123\",\"firstName\":\"Jane\",\"lastName\":\"Smith\",\"schoolId\":1,\"phoneNumber\":\"+1234567890\",\"emergencyContact\":\"+1987654321\",\"emergencyContactName\":\"John Smith\",\"address\":\"123 Main St\",\"city\":\"Anytown\",\"state\":\"CA\",\"zipCode\":\"12345\",\"occupation\":\"Teacher\",\"workplace\":\"ABC Elementary\",\"workPhone\":\"+1555123456\",\"preferredContactMethod\":\"EMAIL\"}"
+                    )
+                )
+            )
+            @Valid @RequestBody ParentSignupRequest parentSignupRequest,
+            @Parameter(
+                description = "Tenant identifier for multi-tenant operation",
+                example = "default-sqool",
+                required = false
+            )
+            @RequestHeader(value = "X-Tenant-ID", required = false) String tenantId,
+            BindingResult bindingResult,
+            HttpServletRequest request) {
+        
+        try {
+            // Check for validation errors
+            if (bindingResult.hasErrors()) {
+                Map<String, String> errors = bindingResult.getFieldErrors().stream()
+                        .collect(Collectors.toMap(
+                                error -> error.getField(),
+                                error -> error.getDefaultMessage(),
+                                (existing, replacement) -> existing
+                        ));
+                
+                logger.warn("Parent signup validation errors for {}: {}", 
+                           parentSignupRequest.getUsername(), errors);
+                
+                ApiResponse<ParentSignupResponse> response = ApiResponse.error("Validation failed", null);
+                response.setPath(request.getRequestURI());
+                return ResponseEntity.badRequest().body(response);
+            }
+            
+            logger.info("Parent signup attempt for username: {} with email: {} for school ID: {} tenant: {}", 
+                       parentSignupRequest.getUsername(), 
+                       parentSignupRequest.getEmail(),
+                       parentSignupRequest.getSchoolId(),
+                       tenantId);
+            
+            ParentSignupResponse signupResponse = authService.registerParent(parentSignupRequest, tenantId);
+            
+            ApiResponse<ParentSignupResponse> response = ApiResponse.success("Parent registration successful", signupResponse);
+            response.setPath(request.getRequestURI());
+            
+            logger.info("Parent {} registered successfully for school: {}", 
+                       parentSignupRequest.getUsername(), 
+                       signupResponse.getSchool().getName());
+            
+            return ResponseEntity.status(HttpStatus.CREATED).body(response);
+            
+        } catch (Exception e) {
+            logger.error("Parent signup failed for username: {}", parentSignupRequest.getUsername(), e);
+            
+            ApiResponse<ParentSignupResponse> response = ApiResponse.error("Parent registration failed: " + e.getMessage());
+            response.setPath(request.getRequestURI());
+            
+            HttpStatus status = HttpStatus.BAD_REQUEST;
+            if (e.getMessage().contains("not found")) {
+                status = HttpStatus.NOT_FOUND;
+            } else if (e.getMessage().contains("already exists")) {
+                status = HttpStatus.CONFLICT;
+            }
+            
+            return ResponseEntity.status(status).body(response);
         }
     }
     

@@ -13,3 +13,9 @@ databaseChangeLog:
       file: db/changelog/tenant/006-seed-roles-permissions.yml
   - include:
       file: db/changelog/tenant/007-assign-role-permissions.yml
+  - include:
+      file: db/changelog/tenant/008-create-bus-table.yml
+  - include:
+      file: db/changelog/tenant/009-alter-active-days-column.yml
+  - include:
+      file: db/changelog/tenant/010-alter-grade-level-column.yml

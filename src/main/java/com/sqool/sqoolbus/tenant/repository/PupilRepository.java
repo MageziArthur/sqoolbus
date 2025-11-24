@@ -44,19 +44,31 @@ public interface PupilRepository extends JpaRepository<Pupil, Long> {
     /**
      * Find pupils by grade level
      */
-    List<Pupil> findByGradeLevel(Integer gradeLevel);
+    List<Pupil> findByGradeLevel(String gradeLevel);
     
     /**
      * Find pupils by grade level and school
      */
     @Query("SELECT p FROM Pupil p WHERE p.gradeLevel = :gradeLevel AND p.school = :school")
-    List<Pupil> findByGradeLevelAndSchool(@Param("gradeLevel") Integer gradeLevel, @Param("school") School school);
+    List<Pupil> findByGradeLevelAndSchool(@Param("gradeLevel") String gradeLevel, @Param("school") School school);
     
     /**
      * Find pupils by parent ID
      */
     @Query("SELECT p FROM Pupil p WHERE p.parent.id = :parentId")
     List<Pupil> findByParentId(@Param("parentId") Long parentId);
+    
+    /**
+     * Find all pupils with eager loading of relationships
+     */
+    @Query("SELECT DISTINCT p FROM Pupil p LEFT JOIN FETCH p.school LEFT JOIN FETCH p.route LEFT JOIN FETCH p.parent")
+    List<Pupil> findAllWithRelationships();
+    
+    /**
+     * Find pupils by school ID with eager loading
+     */
+    @Query("SELECT DISTINCT p FROM Pupil p LEFT JOIN FETCH p.school LEFT JOIN FETCH p.route LEFT JOIN FETCH p.parent WHERE p.school.id = :schoolId")
+    List<Pupil> findBySchoolIdWithRelationships(@Param("schoolId") Long schoolId);
     
     /**
      * Find pupils by parent (using Spring Data JPA naming convention)

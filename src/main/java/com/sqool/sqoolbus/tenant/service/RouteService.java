@@ -3,8 +3,10 @@ package com.sqool.sqoolbus.tenant.service;
 import com.sqool.sqoolbus.exception.ResourceNotFoundException;
 import com.sqool.sqoolbus.security.SecurityUtils;
 import com.sqool.sqoolbus.tenant.entity.hail.Route;
+import com.sqool.sqoolbus.tenant.entity.hail.Pupil;
 import com.sqool.sqoolbus.tenant.entity.User;
 import com.sqool.sqoolbus.tenant.repository.RouteRepository;
+import com.sqool.sqoolbus.tenant.repository.PupilRepository;
 import com.sqool.sqoolbus.tenant.repository.UserRepository;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
@@ -25,6 +27,9 @@ public class RouteService {
     
     @Autowired
     private UserRepository userRepository;
+    
+    @Autowired
+    private PupilRepository pupilRepository;
     
     public List<Route> findAll() {
         // If user is SYSTEM_ADMIN, return all routes
@@ -123,5 +128,44 @@ public class RouteService {
         // Note: Driver assignment would need a proper driver-route relationship entity
         // route.setDriverId(null); // Removed - no direct driver relationship in Route entity
         return routeRepository.save(route);
+    }
+    
+    public Route assignMultiplePupils(Long routeId, List<Long> pupilIds) {
+        Route route = routeRepository.findById(routeId)
+                .orElseThrow(() -> new ResourceNotFoundException("Route", "id", routeId.toString()));
+        
+        for (Long pupilId : pupilIds) {
+            Pupil pupil = pupilRepository.findById(pupilId)
+                    .orElseThrow(() -> new ResourceNotFoundException("Pupil", "id", pupilId.toString()));
+            
+            pupil.setRoute(route);
+            pupil.setUsesBusService(true);
+            pupilRepository.save(pupil);
+        }
+        
+        // Refresh route to get updated pupils list
+        return routeRepository.findById(routeId)
+                .orElseThrow(() -> new ResourceNotFoundException("Route", "id", routeId.toString()));
+    }
+    
+    public Route removeMultiplePupils(Long routeId, List<Long> pupilIds) {
+        Route route = routeRepository.findById(routeId)
+                .orElseThrow(() -> new ResourceNotFoundException("Route", "id", routeId.toString()));
+        
+        for (Long pupilId : pupilIds) {
+            Pupil pupil = pupilRepository.findById(pupilId)
+                    .orElseThrow(() -> new ResourceNotFoundException("Pupil", "id", pupilId.toString()));
+            
+            // Only remove if the pupil is actually assigned to this route
+            if (pupil.getRoute() != null && pupil.getRoute().getId().equals(routeId)) {
+                pupil.setRoute(null);
+                pupil.setUsesBusService(false);
+                pupilRepository.save(pupil);
+            }
+        }
+        
+        // Refresh route to get updated pupils list
+        return routeRepository.findById(routeId)
+                .orElseThrow(() -> new ResourceNotFoundException("Route", "id", routeId.toString()));
     }
 }

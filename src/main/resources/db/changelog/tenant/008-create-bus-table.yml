@@ -1,0 +1,220 @@
+databaseChangeLog:
+  - changeSet:
+      id: 1
+      author: sqoolbus
+      comment: Create bus table
+      changes:
+        - createTable:
+            tableName: bus
+            columns:
+              - column:
+                  name: id
+                  type: BIGINT
+                  autoIncrement: true
+                  constraints:
+                    primaryKey: true
+                    nullable: false
+              - column:
+                  name: bus_number
+                  type: VARCHAR(50)
+                  constraints:
+                    nullable: false
+                    unique: true
+              - column:
+                  name: license_plate
+                  type: VARCHAR(20)
+                  constraints:
+                    nullable: false
+                    unique: true
+              - column:
+                  name: make
+                  type: VARCHAR(50)
+              - column:
+                  name: model
+                  type: VARCHAR(50)
+              - column:
+                  name: year
+                  type: INT
+              - column:
+                  name: color
+                  type: VARCHAR(30)
+              - column:
+                  name: vin
+                  type: VARCHAR(50)
+                  constraints:
+                    unique: true
+              - column:
+                  name: capacity
+                  type: INT
+              - column:
+                  name: fuel_type
+                  type: VARCHAR(20)
+              - column:
+                  name: transmission_type
+                  type: VARCHAR(20)
+              - column:
+                  name: status
+                  type: VARCHAR(20)
+                  defaultValue: 'AVAILABLE'
+                  constraints:
+                    nullable: false
+              - column:
+                  name: purchase_date
+                  type: DATE
+              - column:
+                  name: purchase_price
+                  type: DECIMAL(12,2)
+              - column:
+                  name: current_mileage
+                  type: DECIMAL(10,2)
+              - column:
+                  name: last_service_date
+                  type: DATE
+              - column:
+                  name: next_service_date
+                  type: DATE
+              - column:
+                  name: insurance_policy_number
+                  type: VARCHAR(100)
+              - column:
+                  name: insurance_expiry_date
+                  type: DATE
+              - column:
+                  name: registration_number
+                  type: VARCHAR(50)
+              - column:
+                  name: registration_expiry_date
+                  type: DATE
+              - column:
+                  name: inspection_expiry_date
+                  type: DATE
+              - column:
+                  name: gps_device_id
+                  type: VARCHAR(100)
+              - column:
+                  name: wifi_enabled
+                  type: BOOLEAN
+                  defaultValue: false
+              - column:
+                  name: ac_available
+                  type: BOOLEAN
+                  defaultValue: false
+              - column:
+                  name: wheelchair_accessible
+                  type: BOOLEAN
+                  defaultValue: false
+              - column:
+                  name: cctv_installed
+                  type: BOOLEAN
+                  defaultValue: false
+              - column:
+                  name: first_aid_kit
+                  type: BOOLEAN
+                  defaultValue: true
+              - column:
+                  name: fire_extinguisher
+                  type: BOOLEAN
+                  defaultValue: true
+              - column:
+                  name: emergency_exits
+                  type: INT
+              - column:
+                  name: notes
+                  type: TEXT
+              - column:
+                  name: is_active
+                  type: BOOLEAN
+                  defaultValue: true
+              - column:
+                  name: last_location_latitude
+                  type: DECIMAL(9,6)
+              - column:
+                  name: last_location_longitude
+                  type: DECIMAL(9,6)
+              - column:
+                  name: last_location_update
+                  type: TIMESTAMP
+              - column:
+                  name: school_id
+                  type: BIGINT
+                  constraints:
+                    nullable: false
+              - column:
+                  name: assigned_route_id
+                  type: BIGINT
+              - column:
+                  name: assigned_driver_id
+                  type: BIGINT
+              - column:
+                  name: created_at
+                  type: TIMESTAMP
+                  defaultValueComputed: CURRENT_TIMESTAMP
+                  constraints:
+                    nullable: false
+              - column:
+                  name: updated_at
+                  type: TIMESTAMP
+                  defaultValueComputed: CURRENT_TIMESTAMP
+              - column:
+                  name: created_by
+                  type: VARCHAR(100)
+              - column:
+                  name: modified_by
+                  type: VARCHAR(100)
+
+  - changeSet:
+      id: 2
+      author: sqoolbus
+      comment: Add foreign key constraints to bus table
+      changes:
+        - addForeignKeyConstraint:
+            baseTableName: bus
+            baseColumnNames: school_id
+            constraintName: fk_bus_school
+            referencedTableName: school
+            referencedColumnNames: id
+            onDelete: CASCADE
+        - addForeignKeyConstraint:
+            baseTableName: bus
+            baseColumnNames: assigned_route_id
+            constraintName: fk_bus_route
+            referencedTableName: route
+            referencedColumnNames: id
+            onDelete: SET NULL
+        - addForeignKeyConstraint:
+            baseTableName: bus
+            baseColumnNames: assigned_driver_id
+            constraintName: fk_bus_driver
+            referencedTableName: users
+            referencedColumnNames: id
+            onDelete: SET NULL
+
+  - changeSet:
+      id: 3
+      author: sqoolbus
+      comment: Add indexes to bus table
+      changes:
+        - createIndex:
+            indexName: idx_bus_school_id
+            tableName: bus
+            columns:
+              - column:
+                  name: school_id
+        - createIndex:
+            indexName: idx_bus_status
+            tableName: bus
+            columns:
+              - column:
+                  name: status
+        - createIndex:
+            indexName: idx_bus_assigned_route
+            tableName: bus
+            columns:
+              - column:
+                  name: assigned_route_id
+        - createIndex:
+            indexName: idx_bus_assigned_driver
+            tableName: bus
+            columns:
+              - column:
+                  name: assigned_driver_id

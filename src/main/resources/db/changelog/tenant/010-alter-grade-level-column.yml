@@ -1,0 +1,14 @@
+databaseChangeLog:
+  - changeSet:
+      id: 010-alter-grade-level-column
+      author: system
+      changes:
+        - modifyDataType:
+            tableName: pupil
+            columnName: grade_level
+            newDataType: VARCHAR(10)
+      rollback:
+        - modifyDataType:
+            tableName: pupil
+            columnName: grade_level
+            newDataType: INT

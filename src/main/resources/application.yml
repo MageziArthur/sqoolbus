@@ -36,6 +36,7 @@ spring:
 
   # JPA Configuration
   jpa:
+    open-in-view: false # Disable to prevent lazy loading issues during serialization
     hibernate:
       ddl-auto: none # We'll use Liquibase for schema management
     show-sql: false
@@ -43,6 +44,7 @@ spring:
       hibernate:
         dialect: org.hibernate.dialect.MySQLDialect
         format_sql: true
+        enable_lazy_load_no_trans: true
 
   # Liquibase Configuration
   liquibase:
@@ -53,6 +55,8 @@ app:
   jwt:
     secret: sqoolbus-secret-key-for-jwt-token-generation-must-be-at-least-256-bits-long
     expiration: 86400 # 24 hours in seconds
+  security:
+    inactivity-timeout-minutes: 5 # Session timeout after 5 minutes of inactivity
 
 # Custom Application Properties
 sqoolbus:

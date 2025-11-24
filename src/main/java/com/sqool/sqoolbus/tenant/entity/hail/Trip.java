@@ -19,17 +19,23 @@ public class Trip extends BaseEntity {
     @Column(name = "trip_date", nullable = false)
     private LocalDateTime tripDate;
     
-    @Column(name = "scheduled_start_time")
-    private LocalTime scheduledStartTime;
+    @Column(name = "planned_start_time")
+    private LocalDateTime plannedStartTime;
     
-    @Column(name = "scheduled_end_time")
-    private LocalTime scheduledEndTime;
+    @Column(name = "planned_end_time")
+    private LocalDateTime plannedEndTime;
     
     @Column(name = "actual_start_time")
     private LocalDateTime actualStartTime;
     
     @Column(name = "actual_end_time")
     private LocalDateTime actualEndTime;
+    
+    @Column(name = "estimated_duration_minutes")
+    private Integer estimatedDurationMinutes;
+    
+    @Column(name = "actual_duration_minutes")
+    private Integer actualDurationMinutes;
     
     @Enumerated(EnumType.STRING)
     @Column(name = "trip_type", nullable = false)
@@ -57,20 +63,29 @@ public class Trip extends BaseEntity {
     @Column(name = "end_longitude")
     private Double endLongitude;
     
-    @Column(name = "total_distance_km")
-    private Double totalDistanceKm;
+    @Column(name = "current_latitude")
+    private Double currentLatitude;
+    
+    @Column(name = "current_longitude")
+    private Double currentLongitude;
+    
+    @Column(name = "distance_traveled_km")
+    private Double distanceTraveledKm;
     
     @Column(name = "passenger_count")
     private Integer passengerCount = 0;
+    
+    @Column(name = "picked_up_count")
+    private Integer pickedUpCount = 0;
+    
+    @Column(name = "dropped_off_count")
+    private Integer droppedOffCount = 0;
     
     @Column(name = "weather_conditions", length = 100)
     private String weatherConditions;
     
     @Column(name = "traffic_conditions", length = 100)
     private String trafficConditions;
-    
-    @Column(name = "delay_minutes")
-    private Integer delayMinutes = 0;
     
     @Column(name = "delay_reason", length = 500)
     private String delayReason;
@@ -84,8 +99,14 @@ public class Trip extends BaseEntity {
     @Column(name = "incident_details", columnDefinition = "TEXT")
     private String incidentDetails;
     
-    @Column(name = "fuel_consumption_liters")
-    private Double fuelConsumptionLiters;
+    @Column(name = "emergency_stops")
+    private Integer emergencyStops = 0;
+    
+    @Column(name = "mechanical_issues", length = 500)
+    private String mechanicalIssues;
+    
+    @Column(name = "fuel_used_liters")
+    private Double fuelUsedLiters;
     
     @Column(name = "average_speed_kmh")
     private Double averageSpeedKmh;
@@ -157,20 +178,22 @@ public class Trip extends BaseEntity {
         this.tripDate = tripDate;
     }
     
-    public LocalTime getScheduledStartTime() {
-        return scheduledStartTime;
+    public LocalDateTime getPlannedStartTime() {
+        return plannedStartTime;
     }
     
-    public void setScheduledStartTime(LocalTime scheduledStartTime) {
-        this.scheduledStartTime = scheduledStartTime;
+    public void setPlannedStartTime(LocalDateTime plannedStartTime) {
+        this.plannedStartTime = plannedStartTime;
+        this.setUpdatedAt(LocalDateTime.now());
     }
     
-    public LocalTime getScheduledEndTime() {
-        return scheduledEndTime;
+    public LocalDateTime getPlannedEndTime() {
+        return plannedEndTime;
     }
     
-    public void setScheduledEndTime(LocalTime scheduledEndTime) {
-        this.scheduledEndTime = scheduledEndTime;
+    public void setPlannedEndTime(LocalDateTime plannedEndTime) {
+        this.plannedEndTime = plannedEndTime;
+        this.setUpdatedAt(LocalDateTime.now());
     }
     
     public LocalDateTime getActualStartTime() {
@@ -187,6 +210,24 @@ public class Trip extends BaseEntity {
     
     public void setActualEndTime(LocalDateTime actualEndTime) {
         this.actualEndTime = actualEndTime;
+    }
+    
+    public Integer getEstimatedDurationMinutes() {
+        return estimatedDurationMinutes;
+    }
+    
+    public void setEstimatedDurationMinutes(Integer estimatedDurationMinutes) {
+        this.estimatedDurationMinutes = estimatedDurationMinutes;
+        this.setUpdatedAt(LocalDateTime.now());
+    }
+    
+    public Integer getActualDurationMinutes() {
+        return actualDurationMinutes;
+    }
+    
+    public void setActualDurationMinutes(Integer actualDurationMinutes) {
+        this.actualDurationMinutes = actualDurationMinutes;
+        this.setUpdatedAt(LocalDateTime.now());
     }
     
     public TripType getTripType() {
@@ -253,12 +294,13 @@ public class Trip extends BaseEntity {
         this.endLongitude = endLongitude;
     }
     
-    public Double getTotalDistanceKm() {
-        return totalDistanceKm;
+    public Double getDistanceTraveledKm() {
+        return distanceTraveledKm;
     }
     
-    public void setTotalDistanceKm(Double totalDistanceKm) {
-        this.totalDistanceKm = totalDistanceKm;
+    public void setDistanceTraveledKm(Double distanceTraveledKm) {
+        this.distanceTraveledKm = distanceTraveledKm;
+        this.setUpdatedAt(LocalDateTime.now());
     }
     
     public Integer getPassengerCount() {
@@ -283,14 +325,6 @@ public class Trip extends BaseEntity {
     
     public void setTrafficConditions(String trafficConditions) {
         this.trafficConditions = trafficConditions;
-    }
-    
-    public Integer getDelayMinutes() {
-        return delayMinutes;
-    }
-    
-    public void setDelayMinutes(Integer delayMinutes) {
-        this.delayMinutes = delayMinutes;
     }
     
     public String getDelayReason() {
@@ -325,12 +359,12 @@ public class Trip extends BaseEntity {
         this.incidentDetails = incidentDetails;
     }
     
-    public Double getFuelConsumptionLiters() {
-        return fuelConsumptionLiters;
+    public Double getFuelUsedLiters() {
+        return fuelUsedLiters;
     }
     
-    public void setFuelConsumptionLiters(Double fuelConsumptionLiters) {
-        this.fuelConsumptionLiters = fuelConsumptionLiters;
+    public void setFuelUsedLiters(Double fuelUsedLiters) {
+        this.fuelUsedLiters = fuelUsedLiters;
     }
     
     public Double getAverageSpeedKmh() {
@@ -347,6 +381,60 @@ public class Trip extends BaseEntity {
     
     public void setMaxSpeedKmh(Double maxSpeedKmh) {
         this.maxSpeedKmh = maxSpeedKmh;
+    }
+    
+    public Double getCurrentLatitude() {
+        return currentLatitude;
+    }
+    
+    public void setCurrentLatitude(Double currentLatitude) {
+        this.currentLatitude = currentLatitude;
+        this.setUpdatedAt(LocalDateTime.now());
+    }
+    
+    public Double getCurrentLongitude() {
+        return currentLongitude;
+    }
+    
+    public void setCurrentLongitude(Double currentLongitude) {
+        this.currentLongitude = currentLongitude;
+        this.setUpdatedAt(LocalDateTime.now());
+    }
+    
+    public Integer getPickedUpCount() {
+        return pickedUpCount;
+    }
+    
+    public void setPickedUpCount(Integer pickedUpCount) {
+        this.pickedUpCount = pickedUpCount;
+        this.setUpdatedAt(LocalDateTime.now());
+    }
+    
+    public Integer getDroppedOffCount() {
+        return droppedOffCount;
+    }
+    
+    public void setDroppedOffCount(Integer droppedOffCount) {
+        this.droppedOffCount = droppedOffCount;
+        this.setUpdatedAt(LocalDateTime.now());
+    }
+    
+    public Integer getEmergencyStops() {
+        return emergencyStops;
+    }
+    
+    public void setEmergencyStops(Integer emergencyStops) {
+        this.emergencyStops = emergencyStops;
+        this.setUpdatedAt(LocalDateTime.now());
+    }
+    
+    public String getMechanicalIssues() {
+        return mechanicalIssues;
+    }
+    
+    public void setMechanicalIssues(String mechanicalIssues) {
+        this.mechanicalIssues = mechanicalIssues;
+        this.setUpdatedAt(LocalDateTime.now());
     }
     
     public Route getRoute() {
@@ -399,12 +487,14 @@ public class Trip extends BaseEntity {
         // Calculate trip duration and other metrics
         if (actualStartTime != null && actualEndTime != null) {
             long durationMinutes = java.time.Duration.between(actualStartTime, actualEndTime).toMinutes();
-            if (scheduledStartTime != null && scheduledEndTime != null) {
-                long scheduledDuration = java.time.Duration.between(
-                    tripDate.toLocalDate().atTime(scheduledStartTime),
-                    tripDate.toLocalDate().atTime(scheduledEndTime)
-                ).toMinutes();
-                this.delayMinutes = (int) (durationMinutes - scheduledDuration);
+            this.actualDurationMinutes = (int) durationMinutes;
+            
+            if (plannedStartTime != null && plannedEndTime != null) {
+                long plannedDuration = java.time.Duration.between(plannedStartTime, plannedEndTime).toMinutes();
+                // Set estimated duration if not already set
+                if (this.estimatedDurationMinutes == null) {
+                    this.estimatedDurationMinutes = (int) plannedDuration;
+                }
             }
         }
     }
@@ -444,7 +534,10 @@ public class Trip extends BaseEntity {
     }
     
     public boolean isDelayed() {
-        return delayMinutes != null && delayMinutes > 0;
+        if (actualDurationMinutes != null && estimatedDurationMinutes != null) {
+            return actualDurationMinutes > estimatedDurationMinutes + 5; // Consider more than 5 minutes extra as delayed
+        }
+        return false;
     }
     
     public boolean hasIncident() {
@@ -459,14 +552,17 @@ public class Trip extends BaseEntity {
     }
     
     public double getAverageSpeedCalculated() {
-        if (totalDistanceKm != null && getTripDurationMinutes() > 0) {
-            return (totalDistanceKm / getTripDurationMinutes()) * 60; // km/h
+        if (distanceTraveledKm != null && getTripDurationMinutes() > 0) {
+            return (distanceTraveledKm / getTripDurationMinutes()) * 60; // km/h
         }
         return 0.0;
     }
     
     public boolean isOnTime() {
-        return delayMinutes != null && delayMinutes <= 5; // Consider 5 minutes or less as on time
+        if (actualDurationMinutes != null && estimatedDurationMinutes != null) {
+            return actualDurationMinutes <= estimatedDurationMinutes + 5; // Consider 5 minutes or less extra as on time
+        }
+        return true; // If no duration data, assume on time
     }
     
     @Override

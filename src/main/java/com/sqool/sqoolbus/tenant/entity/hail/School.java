@@ -14,23 +14,29 @@ public class School extends BaseEntity {
     @Column(name = "name", nullable = false, length = 200)
     private String name;
     
-    @Column(name = "code", unique = true, nullable = false, length = 50)
+    @Column(name = "school_code", unique = true, nullable = false, length = 50)
     private String code;
     
     @Column(name = "address", length = 500)
     private String address;
     
-    @Column(name = "phone", length = 20)
-    private String phone;
+    @Column(name = "school_type", nullable = false, length = 20)
+    private String schoolType;
+    
+    @Column(name = "phone_number", length = 20)
+    private String phoneNumber;
     
     @Column(name = "email", length = 100)
     private String email;
     
+    @Column(name = "website", length = 200)
+    private String website;
+    
     @Column(name = "principal_name", length = 100)
     private String principalName;
     
-    @Column(name = "district", length = 100)
-    private String district;
+    @Column(name = "principal_contact", length = 20)
+    private String principalContact;
     
     @Column(name = "city", length = 100)
     private String city;
@@ -53,8 +59,14 @@ public class School extends BaseEntity {
     @Column(name = "timezone", length = 50)
     private String timezone = "America/New_York";
     
-    @Column(name = "school_year", length = 20)
-    private String schoolYear; // e.g., "2024-2025"
+    @Column(name = "start_time")
+    private java.time.LocalTime startTime;
+    
+    @Column(name = "end_time")
+    private java.time.LocalTime endTime;
+    
+    @Column(name = "established_date")
+    private java.time.LocalDate establishedDate;
     
     @Column(name = "is_active", nullable = false)
     private Boolean isActive = true;
@@ -96,12 +108,20 @@ public class School extends BaseEntity {
         this.address = address;
     }
     
-    public String getPhone() {
-        return phone;
+    public String getSchoolType() {
+        return schoolType;
     }
     
-    public void setPhone(String phone) {
-        this.phone = phone;
+    public void setSchoolType(String schoolType) {
+        this.schoolType = schoolType;
+    }
+    
+    public String getPhoneNumber() {
+        return phoneNumber;
+    }
+    
+    public void setPhoneNumber(String phoneNumber) {
+        this.phoneNumber = phoneNumber;
     }
     
     public String getEmail() {
@@ -112,20 +132,28 @@ public class School extends BaseEntity {
         this.email = email;
     }
     
+    public String getWebsite() {
+        return website;
+    }
+    
+    public void setWebsite(String website) {
+        this.website = website;
+    }
+    
+    public String getPrincipalContact() {
+        return principalContact;
+    }
+    
+    public void setPrincipalContact(String principalContact) {
+        this.principalContact = principalContact;
+    }
+    
     public String getPrincipalName() {
         return principalName;
     }
     
     public void setPrincipalName(String principalName) {
         this.principalName = principalName;
-    }
-    
-    public String getDistrict() {
-        return district;
-    }
-    
-    public void setDistrict(String district) {
-        this.district = district;
     }
     
     public String getCity() {
@@ -184,12 +212,28 @@ public class School extends BaseEntity {
         this.timezone = timezone;
     }
     
-    public String getSchoolYear() {
-        return schoolYear;
+    public java.time.LocalTime getStartTime() {
+        return startTime;
     }
     
-    public void setSchoolYear(String schoolYear) {
-        this.schoolYear = schoolYear;
+    public void setStartTime(java.time.LocalTime startTime) {
+        this.startTime = startTime;
+    }
+    
+    public java.time.LocalTime getEndTime() {
+        return endTime;
+    }
+    
+    public void setEndTime(java.time.LocalTime endTime) {
+        this.endTime = endTime;
+    }
+    
+    public java.time.LocalDate getEstablishedDate() {
+        return establishedDate;
+    }
+    
+    public void setEstablishedDate(java.time.LocalDate establishedDate) {
+        this.establishedDate = establishedDate;
     }
     
     public Boolean getIsActive() {

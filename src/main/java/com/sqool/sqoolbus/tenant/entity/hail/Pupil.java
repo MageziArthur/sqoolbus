@@ -1,5 +1,6 @@
 package com.sqool.sqoolbus.tenant.entity.hail;
 
+import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
 import com.sqool.sqoolbus.tenant.entity.BaseEntity;
 import com.sqool.sqoolbus.tenant.entity.User;
 import jakarta.persistence.*;
@@ -25,8 +26,8 @@ public class Pupil extends BaseEntity {
     @Column(name = "student_id", unique = true, nullable = false, length = 50)
     private String studentId;
     
-    @Column(name = "grade_level", nullable = false)
-    private Integer gradeLevel;
+    @Column(name = "grade_level", nullable = false, length = 10)
+    private String gradeLevel; // e.g., "K", "Pre-K", "1", "2", etc.
     
     @Column(name = "class_section", length = 10)
     private String classSection; // e.g., "A", "B", "C"
@@ -87,14 +88,17 @@ public class Pupil extends BaseEntity {
     
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "school_id", nullable = false)
+    @JsonIgnoreProperties({"pupils", "routes"})
     private School school;
     
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "route_id")
+    @JsonIgnoreProperties({"pupils", "trips", "school"})
     private Route route;
     
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "parent_id")
+    @JsonIgnoreProperties({"children", "assignedRoutes", "roles", "permissions"})
     private User parent;
     
     // Constructors
@@ -102,7 +106,7 @@ public class Pupil extends BaseEntity {
         super();
     }
     
-    public Pupil(String firstName, String lastName, String studentId, Integer gradeLevel, School school) {
+    public Pupil(String firstName, String lastName, String studentId, String gradeLevel, School school) {
         super();
         this.firstName = firstName;
         this.lastName = lastName;
@@ -145,15 +149,13 @@ public class Pupil extends BaseEntity {
         this.studentId = studentId;
     }
     
-    public Integer getGradeLevel() {
+    public String getGradeLevel() {
         return gradeLevel;
     }
-    
-    public void setGradeLevel(Integer gradeLevel) {
+
+    public void setGradeLevel(String gradeLevel) {
         this.gradeLevel = gradeLevel;
-    }
-    
-    public String getClassSection() {
+    }    public String getClassSection() {
         return classSection;
     }
     
