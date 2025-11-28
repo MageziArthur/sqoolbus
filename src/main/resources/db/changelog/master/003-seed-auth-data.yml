@@ -388,7 +388,7 @@ databaseChangeLog:
                   value: "admin@sqoolbus.com"
               - column:
                   name: password_hash
-                  value: "$2a$10$8cjz47bjbR4Mn8GMg9IZx.vyjhLXR/SKKXD62RMMUP3v3ZZC51eRe" # Password: admin123
+                  value: "$2a$10$zI01nTKPa0G1HKPmP510AuwhHRkMjnLJbUUPQ53ImgTK7uqWRtQFK" # Password: admin123
               - column:
                   name: first_name
                   value: "Super"

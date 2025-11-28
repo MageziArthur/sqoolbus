@@ -188,6 +188,13 @@ public class UserManagementService {
         return userRepository.findByEmail(email).orElse(null);
     }
     
+    /**
+     * Find all users in the current tenant
+     */
+    public java.util.List<User> findAllUsers() {
+        return userRepository.findAll();
+    }
+    
     private User createUser(String username, String email, String password, 
                           String firstName, String lastName) {
         User user = new User(username, email, password, firstName, lastName);

@@ -43,6 +43,25 @@ public class UserController {
     @Autowired
     private SchoolService schoolService;
     
+    @GetMapping
+    @RequirePermissions(Permission.PERM_VIEW_USERS)
+    @Operation(summary = "Get all users", description = "Retrieve a list of all users in the tenant")
+    @ApiResponses(value = {
+        @ApiResponse(responseCode = "200", description = "Successfully retrieved users",
+                    content = @Content(mediaType = "application/json", 
+                                     schema = @Schema(implementation = User.class))),
+        @ApiResponse(responseCode = "401", description = "Unauthorized",
+                    content = @Content(mediaType = "application/json",
+                                     schema = @Schema(implementation = ErrorResponse.class))),
+        @ApiResponse(responseCode = "403", description = "Forbidden - Insufficient permissions",
+                    content = @Content(mediaType = "application/json",
+                                     schema = @Schema(implementation = ErrorResponse.class)))
+    })
+    public ResponseEntity<List<User>> getAllUsers() {
+        List<User> users = userManagementService.findAllUsers();
+        return ResponseEntity.ok(users);
+    }
+    
     @PostMapping("/parent")
     @RequirePermissions(Permission.PERM_CREATE_USERS)
     @Operation(summary = "Create a parent user", description = "Create a new parent user with associated profile")

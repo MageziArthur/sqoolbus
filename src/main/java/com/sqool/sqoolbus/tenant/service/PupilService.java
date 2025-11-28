@@ -32,19 +32,8 @@ public class PupilService {
     private SchoolRepository schoolRepository;
     
     public List<Pupil> findAll() {
-        // If user is any admin, return all pupils
-        if (SecurityUtils.isAnyAdmin()) {
-            return pupilRepository.findAllWithRelationships();
-        }
-        
-        // For school users, filter by their school
-        Long schoolId = SecurityUtils.getCurrentUserSchoolId();
-        if (schoolId != null) {
-            return pupilRepository.findBySchoolIdWithRelationships(schoolId);
-        }
-        
-        // If no school context, return empty list
-        return List.of();
+        // Return all pupils for current tenant (tenant isolation handled at DB level)
+        return pupilRepository.findAllWithRelationships();
     }
     
     public Optional<Pupil> findById(Long id) {
@@ -64,19 +53,8 @@ public class PupilService {
     }
     
     public List<Pupil> findActiveStudents() {
-        // If user is any admin, return all active pupils
-        if (SecurityUtils.isAnyAdmin()) {
-            return pupilRepository.findByIsActiveTrue();
-        }
-        
-        // For school users, filter by their school
-        Long schoolId = SecurityUtils.getCurrentUserSchoolId();
-        if (schoolId != null) {
-            return pupilRepository.findActiveBySchoolId(schoolId);
-        }
-        
-        // If no school context, return empty list
-        return List.of();
+        // Return all active pupils for current tenant (tenant isolation handled at DB level)
+        return pupilRepository.findByIsActiveTrue();
     }
     
     public Pupil save(Pupil pupil) {

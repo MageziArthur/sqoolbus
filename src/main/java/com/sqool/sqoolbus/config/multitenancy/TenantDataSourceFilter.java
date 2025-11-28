@@ -28,11 +28,9 @@ public class TenantDataSourceFilter implements Filter {
     @Value("${sqoolbus.multitenancy.default-tenant}")
     private String defaultTenant;
     
-    // Paths that don't require tenant validation
+    // Paths that don't require tenant validation (master database and public endpoints)
     private static final List<String> EXCLUDED_PATHS = Arrays.asList(
-        "/api/auth/health",
-        "/api/auth/tenants/info",
-        "/api/tenants/cached",
+        "/api/master",
         "/h2-console",
         "/error",
         "/favicon.ico",
@@ -64,30 +62,32 @@ public class TenantDataSourceFilter implements Filter {
         
         try {
             // Extract tenant ID from header
-            String tenantId = "default_sqool";
+            String tenantId = httpRequest.getHeader(TENANT_HEADER);
             
-            // Use default tenant if no header provided
+            // Require tenant header for tenant APIs
             if (tenantId == null || tenantId.trim().isEmpty()) {
-                tenantId = defaultTenant;
-                logger.debug("No tenant header provided, using default tenant: {}", tenantId);
-            } else {
-                logger.debug("Tenant ID from header: {}", tenantId);
+                logger.error("Missing required tenant header: {}", TENANT_HEADER);
+                sendErrorResponse(httpResponse, HttpStatus.BAD_REQUEST, 
+                    "Missing required header: " + TENANT_HEADER);
+                return;
             }
+            
+            logger.debug("Tenant ID from header: {}", tenantId);
             
             // Validate tenant and get datasource
             if (!tenantDataSourceService.isTenantValid(tenantId)) {
-                logger.error("Invalid or inactive tenant: {}", tenantId);
-                sendErrorResponse(httpResponse, HttpStatus.BAD_REQUEST, 
-                    "Invalid or inactive tenant: " + tenantId);
+                logger.error("Tenant not found or inactive: {}", tenantId);
+                sendErrorResponse(httpResponse, HttpStatus.NOT_FOUND, 
+                    "Tenant not found: " + tenantId);
                 return;
             }
             
             // Get datasource for tenant
             DataSource dataSource = tenantDataSourceService.getDataSourceForTenant(tenantId);
             if (dataSource == null) {
-                logger.error("Failed to get datasource for tenant: {}", tenantId);
-                sendErrorResponse(httpResponse, HttpStatus.INTERNAL_SERVER_ERROR, 
-                    "Failed to initialize database connection for tenant: " + tenantId);
+                logger.error("Failed to initialize database connection for tenant: {}", tenantId);
+                sendErrorResponse(httpResponse, HttpStatus.SERVICE_UNAVAILABLE, 
+                    "Database service temporarily unavailable for tenant: " + tenantId);
                 return;
             }
             

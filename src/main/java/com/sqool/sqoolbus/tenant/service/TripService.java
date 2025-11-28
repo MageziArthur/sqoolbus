@@ -35,19 +35,8 @@ public class TripService {
     private UserRepository userRepository;
     
     public List<Trip> findAll() {
-        // If user is any admin, return all trips
-        if (SecurityUtils.isAnyAdmin()) {
-            return tripRepository.findAll();
-        }
-        
-        // For school users, filter by their school
-        Long schoolId = SecurityUtils.getCurrentUserSchoolId();
-        if (schoolId != null) {
-            return tripRepository.findBySchoolId(schoolId);
-        }
-        
-        // If no school context, return empty list
-        return List.of();
+        // Return all trips for current tenant (tenant isolation handled at DB level)
+        return tripRepository.findAll();
     }
     
     public Optional<Trip> findById(Long id) {

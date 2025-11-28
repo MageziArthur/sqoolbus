@@ -32,19 +32,8 @@ public class RouteService {
     private PupilRepository pupilRepository;
     
     public List<Route> findAll() {
-        // If user is SYSTEM_ADMIN, return all routes
-        if (SecurityUtils.isAnyAdmin()) {
-            return routeRepository.findAll();
-        }
-        
-        // For school users, filter by their school
-        Long schoolId = SecurityUtils.getCurrentUserSchoolId();
-        if (schoolId != null) {
-            return findBySchoolId(schoolId);
-        }
-        
-        // If no school context, return empty list
-        return List.of();
+        // Return all routes for current tenant (tenant isolation handled at DB level)
+        return routeRepository.findAll();
     }
     
     public Optional<Route> findById(Long id) {
