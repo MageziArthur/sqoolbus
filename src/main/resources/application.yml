@@ -11,9 +11,9 @@ spring:
   # Master Database Configuration
   datasource:
     master:
-      url: jdbc:mysql://localhost:3306/sqoolbus_master?useSSL=false&allowPublicKeyRetrieval=true&serverTimezone=UTC
-      username: root
-      password: rootpassword
+      url: ${MASTER_DB_URL:jdbc:mysql://localhost:3306/sqoolbus_master?useSSL=false&allowPublicKeyRetrieval=true&serverTimezone=UTC}
+      username: ${MASTER_DB_USERNAME:root}
+      password: ${MASTER_DB_PASSWORD:rootpassword}
       driver-class-name: com.mysql.cj.jdbc.Driver
       hikari:
         maximum-pool-size: 10
@@ -24,9 +24,9 @@ spring:
     # Default Tenant Database Configuration
     tenant:
       default:
-        url: jdbc:mysql://localhost:3306/default_sqool?useSSL=false&allowPublicKeyRetrieval=true&serverTimezone=UTC
-        username: root
-        password: rootpassword
+        url: ${TENANT_DB_URL:jdbc:mysql://localhost:3306/default_sqool?useSSL=false&allowPublicKeyRetrieval=true&serverTimezone=UTC}
+        username: ${TENANT_DB_USERNAME:root}
+        password: ${TENANT_DB_PASSWORD:rootpassword}
         driver-class-name: com.mysql.cj.jdbc.Driver
         hikari:
           maximum-pool-size: 20
@@ -53,8 +53,8 @@ spring:
 # JWT Configuration
 app:
   jwt:
-    secret: sqoolbus-secret-key-for-jwt-token-generation-must-be-at-least-256-bits-long
-    expiration: 86400 # 24 hours in seconds
+    secret: ${JWT_SECRET:sqoolbus-secret-key-for-jwt-token-generation-must-be-at-least-256-bits-long}
+    expiration: ${JWT_EXPIRATION:86400} # 24 hours in seconds
   security:
     inactivity-timeout-minutes: 5 # Session timeout after 5 minutes of inactivity
 
@@ -75,7 +75,7 @@ logging:
     liquibase: INFO
 
 server:
-  port: 8080
+  port: ${SERVER_PORT:8080}
 
 ---
 # Development Profile
