@@ -48,42 +48,73 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
             String token = getTokenFromRequest(request);
             
             if (token != null && jwtTokenProvider.validateToken(token)) {
+                String tokenType = jwtTokenProvider.getTokenType(token);
+                boolean isMasterToken = "master".equals(tokenType);
+                
                 String username = jwtTokenProvider.getUsernameFromToken(token);
                 String tenantId = jwtTokenProvider.getTenantIdFromToken(token);
                 Long schoolId = jwtTokenProvider.getSchoolIdFromToken(token);
                 Set<String> roles = jwtTokenProvider.getRolesFromToken(token);
                 Set<String> permissions = jwtTokenProvider.getPermissionsFromToken(token);
+                Long userId = jwtTokenProvider.getUserIdFromToken(token);
                 
-                logger.debug("Extracted from token - Username: {}, TenantId: {}, SchoolId: {}, Roles: {}, Permissions: {}", 
-                            username, tenantId, schoolId, roles, permissions);
+                logger.debug("Extracted from token - Username: {}, UserId: {}, Type: {}, TenantId: {}, SchoolId: {}, Roles: {}, Permissions: {}", 
+                            username, userId, tokenType, tenantId, schoolId, roles, permissions);
                 
-                if (username == null || username.trim().isEmpty()) {
+                // For master tokens, use userId as the principal if username is not available
+                String principal = username;
+                if (isMasterToken && (username == null || username.trim().isEmpty())) {
+                    if (userId != null) {
+                        principal = "user_" + userId; // Create a principal from userId
+                        logger.debug("Master token: Using userId {} as principal", userId);
+                    } else {
+                        logger.warn("Master token validation failed: both username and userId are null");
+                        filterChain.doFilter(request, response);
+                        return;
+                    }
+                } else if (username == null || username.trim().isEmpty()) {
                     logger.warn("Token validation failed: username is null or empty");
                     filterChain.doFilter(request, response);
                     return;
                 }
                 
-                // Check for inactivity timeout
-                String sessionKey = activityTrackingService.createSessionKey(username, tenantId);
-                if (activityTrackingService.isSessionInactive(sessionKey)) {
-                    logger.warn("Session inactive due to timeout for user: {} in tenant: {}", username, tenantId);
+                // Check for inactivity timeout (skip for master tokens)
+                if (!isMasterToken) {
+                    String sessionKey = activityTrackingService.createSessionKey(principal, tenantId);
+                    if (activityTrackingService.isSessionInactive(sessionKey)) {
+                        logger.warn("Session inactive due to timeout for user: {} in tenant: {}", principal, tenantId);
+                        
+                        // Remove the inactive session
+                        activityTrackingService.removeSession(sessionKey);
+                        
+                        // Return 401 Unauthorized for inactive session
+                        response.setStatus(HttpServletResponse.SC_UNAUTHORIZED);
+                        response.setContentType("application/json");
+                        response.getWriter().write("{\"error\":\"Session expired due to inactivity\",\"code\":\"SESSION_INACTIVE\"}");
+                        return;
+                    }
                     
-                    // Remove the inactive session
-                    activityTrackingService.removeSession(sessionKey);
-                    
-                    // Return 401 Unauthorized for inactive session
-                    response.setStatus(HttpServletResponse.SC_UNAUTHORIZED);
-                    response.setContentType("application/json");
-                    response.getWriter().write("{\"error\":\"Session expired due to inactivity\",\"code\":\"SESSION_INACTIVE\"}");
-                    return;
+                    // Update user activity for valid requests
+                    activityTrackingService.updateActivity(sessionKey);
                 }
                 
-                // Update user activity for valid requests
-                activityTrackingService.updateActivity(sessionKey);
-                
-                // Set tenant context if available
-                if (tenantId != null) {
+                // Set tenant context only for tenant tokens (not master tokens)
+                if (!isMasterToken && tenantId != null) {
+                    // Verify that token's tenant ID matches the request's tenant context (if set by filter)
+                    String requestTenantId = request.getHeader("X-Tenant-ID");
+                    if (requestTenantId != null && !requestTenantId.equals(tenantId)) {
+                        logger.error("JWT tenant ID mismatch. Token tenant: {}, Request tenant: {}", 
+                            tenantId, requestTenantId);
+                        response.setStatus(HttpServletResponse.SC_FORBIDDEN);
+                        response.setContentType("application/json");
+                        response.getWriter().write("{\"error\":\"Token is not valid for the requested tenant\",\"code\":\"TENANT_MISMATCH\"}");
+                        return;
+                    }
+                    
                     TenantContext.setTenantId(tenantId);
+                    logger.debug("Set tenant context to: {}", tenantId);
+                } else if (isMasterToken) {
+                    logger.debug("Master token detected - skipping tenant context and activity tracking");
                 }
                 
                 // Create authorities from roles and permissions
@@ -98,14 +129,14 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
                 
                 // Create custom authentication token with school context
                 SchoolAwareAuthentication authentication = 
-                        new SchoolAwareAuthentication(username, null, authorities, schoolId, tenantId);
+                        new SchoolAwareAuthentication(principal, null, authorities, schoolId, tenantId);
                 authentication.setDetails(new WebAuthenticationDetailsSource().buildDetails(request));
                 
                 // Set authentication in security context
                 SecurityContextHolder.getContext().setAuthentication(authentication);
                 
-                logger.debug("Set authentication for user: {} with roles: {} and permissions: {}", 
-                            username, roles, permissions);
+                logger.debug("Set authentication for principal: {} with roles: {} and permissions: {}", 
+                            principal, roles, permissions);
             }
         } catch (Exception ex) {
             logger.error("Could not set user authentication in security context", ex);

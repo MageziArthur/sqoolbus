@@ -48,6 +48,9 @@ public class LiquibaseConfig {
                 Liquibase liquibase = new Liquibase("db/changelog/master-changelog.yml", 
                                                    new ClassLoaderResourceAccessor(), 
                                                    database);
+                liquibase.setChangeLogParameter("defaultTenantUrl", defaultTenantUrl);
+                liquibase.setChangeLogParameter("defaultTenantUsername", defaultTenantUsername);
+                liquibase.setChangeLogParameter("defaultTenantPassword", defaultTenantPassword);
                 liquibase.update(new Contexts(), new LabelExpression());
                 logger.info("Master database migration completed successfully");
             } else {

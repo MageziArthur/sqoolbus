@@ -5,3 +5,7 @@ databaseChangeLog:
       file: db/changelog/master/002-create-auth-tables.yml
   - include:
       file: db/changelog/master/003-seed-auth-data.yml
+  - include:
+      file: db/changelog/master/004-create-parent-pupil-mapping-table.yml
+  - include:
+      file: db/changelog/master/005-create-school-driver-mapping-table.yml

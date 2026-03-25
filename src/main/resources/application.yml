@@ -11,9 +11,9 @@ spring:
   # Master Database Configuration
   datasource:
     master:
-      url: ${MASTER_DB_URL:jdbc:mysql://localhost:3306/sqoolbus_master?useSSL=false&allowPublicKeyRetrieval=true&serverTimezone=UTC}
-      username: ${MASTER_DB_USERNAME:root}
-      password: ${MASTER_DB_PASSWORD:rootpassword}
+      url: ${MASTER_DB_URL}
+      username: ${MASTER_DB_USERNAME}
+      password: ${MASTER_DB_PASSWORD}
       driver-class-name: com.mysql.cj.jdbc.Driver
       hikari:
         maximum-pool-size: 10
@@ -24,9 +24,9 @@ spring:
     # Default Tenant Database Configuration
     tenant:
       default:
-        url: ${TENANT_DB_URL:jdbc:mysql://localhost:3306/default_sqool?useSSL=false&allowPublicKeyRetrieval=true&serverTimezone=UTC}
-        username: ${TENANT_DB_USERNAME:root}
-        password: ${TENANT_DB_PASSWORD:rootpassword}
+        url: ${TENANT_DB_URL}
+        username: ${TENANT_DB_USERNAME}
+        password: ${TENANT_DB_PASSWORD}
         driver-class-name: com.mysql.cj.jdbc.Driver
         hikari:
           maximum-pool-size: 20
@@ -60,11 +60,12 @@ app:
 
 # Custom Application Properties
 sqoolbus:
+  see_test_data: ${SEE_TEST_DATA:true}
   multitenancy:
-    default-tenant: default_sqool
-    tenant-header: X-Tenant-ID
+    default-tenant: ${DEFAULT_TENANT_ID:default_sqool}
+    tenant-header: ${TENANT_HEADER:X-Tenant-ID}
     master-datasource:
-      schema: public
+      schema: ${MASTER_SCHEMA}
     
 # Logging Configuration
 logging:
@@ -86,17 +87,17 @@ spring:
   
   datasource:
     master:
-      url: jdbc:mysql://localhost:3306/sqoolbus_master?useSSL=false&allowPublicKeyRetrieval=true&serverTimezone=UTC
-      username: root
-      password: rootpassword
-      driver-class-name: com.mysql.cj.jdbc.Driver
+      url: ${MASTER_DB_URL}
+      username: ${MASTER_DB_USERNAME:root}
+      password: ${MASTER_DB_PASSWORD:rootpassword}
+      driver-class-name: ${DRIVER:com.mysql.cj.jdbc.Driver}
     
     tenant:
       default:
-        url: jdbc:mysql://localhost:3306/default_sqool?useSSL=false&allowPublicKeyRetrieval=true&serverTimezone=UTC
-        username: root
-        password: rootpassword
-        driver-class-name: com.mysql.cj.jdbc.Driver
+        url: ${TENANT_DB_URL}
+        username: ${TENANT_DB_USERNAME:root}
+        password: ${TENANT_DB_PASSWORD:rootpassword}
+        driver-class-name: ${DRIVER:com.mysql.cj.jdbc.Driver}
   
   jpa:
     properties:
@@ -110,15 +111,15 @@ spring:
 # Sqoolbus Configuration
 sqoolbus:
   database:
-    host: localhost
-    port: 3306
-    username: root
-    password: rootpassword
-    name: sqoolbus_master
+    host: ${DB_HOST:localhost}
+    port: ${DB_PORT:3306}
+    username: ${MASTER_DB_USERNAME:root}
+    password: ${MASTER_DB_PASSWORD:rootpassword}
+    name: ${MYSQL_MASTER_DB:sqoolbus_master}
   tenant:
-    default: default_sqool
+    default: ${MYSQL_TENANT_DB:default_sqool}
   security:
-    enforce-2fa: false
+    enforce-2fa: ${ENFORCE_2FA:false}
 
 ---
 # Production Profile

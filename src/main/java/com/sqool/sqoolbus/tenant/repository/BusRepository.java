@@ -36,12 +36,27 @@ public interface BusRepository extends JpaRepository<Bus, Long> {
     
     @Query("SELECT b FROM Bus b WHERE b.assignedDriver.id = :driverId")
     Optional<Bus> findByAssignedDriverId(@Param("driverId") Long driverId);
+
+    @Query("SELECT b FROM Bus b WHERE b.assignedDriver.id = :driverId")
+    List<Bus> findAllByAssignedDriverId(@Param("driverId") Long driverId);
+
+    @Query("SELECT b FROM Bus b WHERE b.assignedDriver.id = :driverId AND b.assignedRoute IS NOT NULL")
+    List<Bus> findAllByAssignedDriverIdAndAssignedRouteIsNotNull(@Param("driverId") Long driverId);
     
     @Query("SELECT b FROM Bus b WHERE b.school.id = :schoolId AND b.assignedRoute IS NULL AND b.status = 'AVAILABLE'")
     List<Bus> findAvailableBusesWithoutRoute(@Param("schoolId") Long schoolId);
+
+    @Query("SELECT b FROM Bus b WHERE b.assignedRoute IS NULL AND b.status = 'AVAILABLE'")
+    List<Bus> findAvailableBusesWithoutRoute();
     
     @Query("SELECT b FROM Bus b WHERE b.school.id = :schoolId AND b.assignedDriver IS NULL AND b.status = 'AVAILABLE'")
     List<Bus> findAvailableBusesWithoutDriver(@Param("schoolId") Long schoolId);
+
+    @Query("SELECT b FROM Bus b WHERE b.assignedDriver IS NULL AND b.status = 'AVAILABLE'")
+    List<Bus> findAvailableBusesWithoutDriver();
+
+    @Query("SELECT b FROM Bus b WHERE b.isActive = true")
+    List<Bus> findAllActive();
     
     @Query("SELECT COUNT(b) FROM Bus b WHERE b.school.id = :schoolId AND b.isActive = true")
     Long countActiveBySchool(@Param("schoolId") Long schoolId);

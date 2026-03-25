@@ -35,8 +35,7 @@ public class ParentSignupRequest {
     @Size(max = 50, message = "Last name must not exceed 50 characters")
     private String lastName;
     
-    @Schema(description = "School ID that the parent's children attend", example = "1", requiredMode = Schema.RequiredMode.REQUIRED)
-    @NotNull(message = "School ID is required")
+    @Schema(description = "School ID that the parent's children attend (optional)", example = "1")
     private Long schoolId;
     
     @Schema(description = "Parent's phone number", example = "+1-555-123-4567", requiredMode = Schema.RequiredMode.REQUIRED)

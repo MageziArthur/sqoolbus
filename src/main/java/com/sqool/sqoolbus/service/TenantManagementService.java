@@ -4,6 +4,7 @@ import com.sqool.sqoolbus.config.SqoolbusProperties;
 import com.sqool.sqoolbus.dto.TenantRegistrationRequest;
 import com.sqool.sqoolbus.dto.TenantRegistrationResponse;
 import com.sqool.sqoolbus.dto.TenantSetupResponse;
+import com.sqool.sqoolbus.dto.TenantSummaryResponse;
 import com.sqool.sqoolbus.master.entity.Tenant;
 import com.sqool.sqoolbus.master.repository.TenantRepository;
 import liquibase.Contexts;
@@ -25,6 +26,8 @@ import java.sql.DriverManager;
 import java.sql.PreparedStatement;
 import java.sql.SQLException;
 import java.time.LocalDateTime;
+import java.util.List;
+import java.util.stream.Collectors;
 
 @Service
 public class TenantManagementService {
@@ -39,6 +42,20 @@ public class TenantManagementService {
     
     @Autowired
     private SqoolbusProperties sqoolbusProperties;
+
+        public List<TenantSummaryResponse> getAllTenants() {
+        return tenantRepository.findAll().stream()
+            .map(tenant -> new TenantSummaryResponse(
+                tenant.getId(),
+                tenant.getTenantId(),
+                tenant.getTenantName(),
+                tenant.getDescription(),
+                tenant.getIsActive(),
+                tenant.getCreatedAt(),
+                tenant.getUpdatedAt()
+            ))
+            .collect(Collectors.toList());
+        }
     
     @Transactional
     public TenantRegistrationResponse registerTenant(TenantRegistrationRequest request) {

@@ -92,13 +92,13 @@ databaseChangeLog:
                   value: Default tenant for Sqool application
               - column:
                   name: database_url
-                  value: jdbc:mysql://localhost:3306/default_sqool?useSSL=false&allowPublicKeyRetrieval=true&serverTimezone=UTC
+                  value: ${defaultTenantUrl}
               - column:
                   name: database_username
-                  value: root
+                  value: ${defaultTenantUsername}
               - column:
                   name: database_password
-                  value: rootpassword
+                  value: ${defaultTenantPassword}
               - column:
                   name: database_driver
                   value: com.mysql.cj.jdbc.Driver

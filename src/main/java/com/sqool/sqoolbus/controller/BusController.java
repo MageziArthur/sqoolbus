@@ -43,37 +43,67 @@ public class BusController {
         BusResponse response = busService.getBusById(busId, tenantId);
         return ResponseEntity.ok(new ApiResponse<>(true, "Bus retrieved successfully", response));
     }
+
+    @GetMapping
+    @PreAuthorize("hasAnyRole('ADMIN', 'SUPER_ADMIN', 'RIDER')")
+    @Operation(summary = "Get all buses", description = "Retrieves all buses for the current tenant")
+    public ResponseEntity<ApiResponse<List<BusResponse>>> getAllBuses(
+            @RequestHeader(value = "X-Tenant-ID", required = false) String tenantId) {
+
+        List<BusResponse> responses = busService.getAllBuses(tenantId);
+        return ResponseEntity.ok(new ApiResponse<>(true, "Buses retrieved successfully", responses));
+    }
     
     @GetMapping("/school/{schoolId}")
     @PreAuthorize("hasAnyRole('ADMIN', 'SUPER_ADMIN', 'RIDER')")
-    @Operation(summary = "Get all buses by school", description = "Retrieves all buses for a specific school")
+    @Operation(summary = "Get all buses", description = "Retrieves all buses for the current tenant. schoolId is ignored for backward compatibility")
     public ResponseEntity<ApiResponse<List<BusResponse>>> getAllBusesBySchool(
             @PathVariable Long schoolId,
             @RequestHeader(value = "X-Tenant-ID", required = false) String tenantId) {
-        
-        List<BusResponse> responses = busService.getAllBusesBySchool(schoolId, tenantId);
+
+        List<BusResponse> responses = busService.getAllBuses(tenantId);
         return ResponseEntity.ok(new ApiResponse<>(true, "Buses retrieved successfully", responses));
+    }
+
+    @GetMapping("/available-without-route")
+    @PreAuthorize("hasAnyRole('ADMIN', 'SUPER_ADMIN')")
+    @Operation(summary = "Get available buses without route", description = "Retrieves buses that are available and not assigned to any route for current tenant")
+    public ResponseEntity<ApiResponse<List<BusResponse>>> getAvailableBusesWithoutRouteTenant(
+            @RequestHeader(value = "X-Tenant-ID", required = false) String tenantId) {
+
+        List<BusResponse> responses = busService.getAvailableBusesWithoutRoute(tenantId);
+        return ResponseEntity.ok(new ApiResponse<>(true, "Available buses retrieved successfully", responses));
     }
     
     @GetMapping("/school/{schoolId}/available-without-route")
     @PreAuthorize("hasAnyRole('ADMIN', 'SUPER_ADMIN')")
-    @Operation(summary = "Get available buses without route", description = "Retrieves buses that are available and not assigned to any route")
+    @Operation(summary = "Get available buses without route", description = "Retrieves buses that are available and not assigned to any route for current tenant. schoolId is ignored for backward compatibility")
     public ResponseEntity<ApiResponse<List<BusResponse>>> getAvailableBusesWithoutRoute(
             @PathVariable Long schoolId,
             @RequestHeader(value = "X-Tenant-ID", required = false) String tenantId) {
-        
-        List<BusResponse> responses = busService.getAvailableBusesWithoutRoute(schoolId, tenantId);
+
+        List<BusResponse> responses = busService.getAvailableBusesWithoutRoute(tenantId);
+        return ResponseEntity.ok(new ApiResponse<>(true, "Available buses retrieved successfully", responses));
+    }
+
+    @GetMapping("/available-without-driver")
+    @PreAuthorize("hasAnyRole('ADMIN', 'SUPER_ADMIN')")
+    @Operation(summary = "Get available buses without driver", description = "Retrieves buses that are available and have no assigned driver for current tenant")
+    public ResponseEntity<ApiResponse<List<BusResponse>>> getAvailableBusesWithoutDriverTenant(
+            @RequestHeader(value = "X-Tenant-ID", required = false) String tenantId) {
+
+        List<BusResponse> responses = busService.getAvailableBusesWithoutDriver(tenantId);
         return ResponseEntity.ok(new ApiResponse<>(true, "Available buses retrieved successfully", responses));
     }
     
     @GetMapping("/school/{schoolId}/available-without-driver")
     @PreAuthorize("hasAnyRole('ADMIN', 'SUPER_ADMIN')")
-    @Operation(summary = "Get available buses without driver", description = "Retrieves buses that are available and have no assigned driver")
+    @Operation(summary = "Get available buses without driver", description = "Retrieves buses that are available and have no assigned driver for current tenant. schoolId is ignored for backward compatibility")
     public ResponseEntity<ApiResponse<List<BusResponse>>> getAvailableBusesWithoutDriver(
             @PathVariable Long schoolId,
             @RequestHeader(value = "X-Tenant-ID", required = false) String tenantId) {
-        
-        List<BusResponse> responses = busService.getAvailableBusesWithoutDriver(schoolId, tenantId);
+
+        List<BusResponse> responses = busService.getAvailableBusesWithoutDriver(tenantId);
         return ResponseEntity.ok(new ApiResponse<>(true, "Available buses retrieved successfully", responses));
     }
     
@@ -144,5 +174,17 @@ public class BusController {
         
         busService.deleteBus(busId, tenantId);
         return ResponseEntity.ok(new ApiResponse<>(true, "Bus deleted successfully", null));
+    }
+
+    @PostMapping("/{busId}/location")
+    @PreAuthorize("hasAnyRole('ADMIN', 'SUPER_ADMIN', 'RIDER')")
+    @Operation(summary = "Update bus realtime location", description = "Updates realtime x,y location of a bus")
+    public ResponseEntity<ApiResponse<BusResponse>> updateBusLocation(
+            @PathVariable Long busId,
+            @Valid @RequestBody BusLocationRequest request,
+            @RequestHeader(value = "X-Tenant-ID", required = false) String tenantId) {
+
+        BusResponse response = busService.updateBusLocation(busId, request.getLatitude(), request.getLongitude(), tenantId);
+        return ResponseEntity.ok(new ApiResponse<>(true, "Bus location updated successfully", response));
     }
 }

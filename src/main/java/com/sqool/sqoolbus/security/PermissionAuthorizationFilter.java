@@ -6,6 +6,7 @@ import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.springframework.http.HttpMethod;
 import org.springframework.security.core.Authentication;
 import org.springframework.security.core.GrantedAuthority;
 import org.springframework.security.core.context.SecurityContextHolder;
@@ -109,13 +110,16 @@ public class PermissionAuthorizationFilter extends OncePerRequestFilter {
             return false;
         }
 
-        // Check if user is SYSTEM_ADMIN or ADMIN (has all permissions)
+        // Elevated admin-style roles have access to all permission-guarded endpoints
         Set<String> userAuthorities = authentication.getAuthorities().stream()
                 .map(GrantedAuthority::getAuthority)
                 .collect(Collectors.toSet());
         
-        if (userAuthorities.contains("ROLE_ADMIN")) {
-            log.debug("User {} has ADMIN role, granting access", getCurrentUsername());
+        if (userAuthorities.contains("ROLE_ADMIN") ||
+                userAuthorities.contains("ROLE_SUPER_ADMIN") ||
+                userAuthorities.contains("ROLE_SYSTEM_ADMIN") ||
+                userAuthorities.contains("ROLE_TENANT_ADMIN")) {
+            log.debug("User {} has elevated admin role, granting access", getCurrentUsername());
             return true;
         }
 
@@ -148,6 +152,10 @@ public class PermissionAuthorizationFilter extends OncePerRequestFilter {
     @Override
     protected boolean shouldNotFilter(HttpServletRequest request) {
         String path = request.getRequestURI();
+
+        if (HttpMethod.OPTIONS.matches(request.getMethod())) {
+            return true;
+        }
         
         // Skip filter for static resources, actuator endpoints, and non-API paths
         return path.startsWith("/static/") || 

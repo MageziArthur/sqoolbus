@@ -1,102 +1,163 @@
 package com.sqool.sqoolbus.config;
 
-import com.sqool.sqoolbus.dto.ErrorResponse;
-import io.swagger.v3.core.converter.ModelConverters;
 import io.swagger.v3.oas.models.Components;
 import io.swagger.v3.oas.models.OpenAPI;
 import io.swagger.v3.oas.models.Operation;
 import io.swagger.v3.oas.models.info.Contact;
 import io.swagger.v3.oas.models.info.Info;
 import io.swagger.v3.oas.models.info.License;
-import io.swagger.v3.oas.models.media.Content;
-import io.swagger.v3.oas.models.media.MediaType;
-import io.swagger.v3.oas.models.media.Schema;
-import io.swagger.v3.oas.models.responses.ApiResponse;
 import io.swagger.v3.oas.models.security.SecurityRequirement;
 import io.swagger.v3.oas.models.security.SecurityScheme;
 import io.swagger.v3.oas.models.servers.Server;
 import org.springdoc.core.customizers.OperationCustomizer;
+import org.springdoc.core.models.GroupedOpenApi;
+import org.springframework.core.annotation.AnnotatedElementUtils;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
+import org.springframework.web.bind.annotation.RequestMethod;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.method.HandlerMethod;
 
+import java.util.Arrays;
 import java.util.List;
-import java.util.Map;
+import java.util.regex.Pattern;
 
 @Configuration
 public class OpenApiConfig {
 
+    private static final Pattern TENANT_SETUP_PATH_PATTERN = Pattern.compile("^/api/tenants/[^/]+/setup$");
+
+    /**
+     * Master API Group - for tenant management and master authentication
+     */
+    @Bean
+    public GroupedOpenApi masterApi() {
+        return GroupedOpenApi.builder()
+                .group("master")
+                .displayName("Master APIs")
+            .pathsToMatch("/api/master/**", "/api/tenants", "/api/tenants/**", "/api/users/**", "/api/otp/**", "/api/trips/**")
+                .addOperationCustomizer(masterOperationCustomizer())
+                .build();
+    }
+
+    /**
+     * Tenant API Group - for tenant-specific operations
+     */
+    @Bean
+    public GroupedOpenApi tenantApi() {
+        return GroupedOpenApi.builder()
+                .group("tenant")
+                .displayName("Tenant APIs")
+                .pathsToMatch("/api/**")
+            .pathsToExclude("/api/master/**", "/api/tenants", "/api/tenants/**", "/api/users/**", "/api/otp/**")
+                .addOperationCustomizer(tenantOperationCustomizer())
+                .build();
+    }
+
+    /**
+     * Common OpenAPI configuration shared by both groups
+     */
     @Bean
     public OpenAPI customOpenAPI() {
-        final String securitySchemeName = "bearerAuth";
-        final String tenantHeaderName = "X-Tenant-ID";
-        final String apiTitle = "Sqoolbus School Transportation API";
-        final String apiDescription = "A comprehensive REST API for managing school bus transportation system. Includes APIs for schools, pupils, routes, trips, and user management with role-based access control.";
-        final String apiVersion = "1.0.0";
-
         return new OpenAPI()
                 .servers(List.of(
                         new Server().url("http://localhost:8080").description("Local development server")
                 ))
                 .info(new Info()
-                        .title(apiTitle)
-                        .description(apiDescription)
-                        .version(apiVersion)
+                        .title("Sqoolbus School Transportation API")
+                        .description("A comprehensive REST API for managing school bus transportation system")
+                        .version("1.0.0")
                         .contact(new Contact()
                                 .name("Sqoolbus Development Team")
                                 .email("dev@sqoolbus.com"))
                         .license(new License()
                                 .name("MIT License")
                                 .url("https://opensource.org/licenses/MIT")))
-                .addSecurityItem(new SecurityRequirement()
-                        .addList(securitySchemeName)
-                        .addList(tenantHeaderName))
                 .components(new Components()
-                        .addSecuritySchemes(securitySchemeName,
+                        .addSecuritySchemes("bearerAuth",
                                 new SecurityScheme()
-                                        .name(securitySchemeName)
+                                        .name("bearerAuth")
                                         .type(SecurityScheme.Type.HTTP)
                                         .scheme("bearer")
                                         .bearerFormat("JWT")
                                         .description("JWT Authorization header using the Bearer scheme"))
-                        .addSecuritySchemes(tenantHeaderName,
+                        .addSecuritySchemes("X-Tenant-ID",
                                 new SecurityScheme()
-                                        .name(tenantHeaderName)
+                                        .name("X-Tenant-ID")
                                         .type(SecurityScheme.Type.APIKEY)
                                         .in(SecurityScheme.In.HEADER)
                                         .description("Tenant identifier for multi-tenant operations (e.g., default_sqool)")));
     }
 
     /**
-     * Customizer to add both bearerAuth and X-Tenant-ID security requirements to all operations
+     * Operation customizer for Master APIs - only requires Bearer token
      */
-    @Bean
-    public OperationCustomizer operationCustomizer() {
+    private OperationCustomizer masterOperationCustomizer() {
         return (Operation operation, HandlerMethod handlerMethod) -> {
-            // Get the request path to determine if this is a master API or tenant API
-            String path = handlerMethod.getMethod().getDeclaringClass().getAnnotation(RequestMapping.class) != null
-                    ? handlerMethod.getMethod().getDeclaringClass().getAnnotation(RequestMapping.class).value()[0]
-                    : "";
-
-            // Skip adding tenant header for master APIs and public endpoints
-            if (path.startsWith("/api/master") || 
-                path.startsWith("/swagger-ui") || 
-                path.startsWith("/v3/api-docs") ||
-                path.equals("/error")) {
-                return operation;
-            }
-
-            // Clear existing security requirements to avoid duplicates
+            // Clear existing security requirements
             if (operation.getSecurity() != null) {
                 operation.getSecurity().clear();
             }
 
-            // Add both security requirements to all tenant APIs
+            // Master APIs only need Bearer token (master token)
             operation.addSecurityItem(new SecurityRequirement().addList("bearerAuth"));
-            operation.addSecurityItem(new SecurityRequirement().addList("X-Tenant-ID"));
+
+            // Trip APIs still require tenant context even when shown in master Swagger group
+            if (isTripsApi(handlerMethod)) {
+                operation.addSecurityItem(new SecurityRequirement().addList("X-Tenant-ID"));
+            }
 
             return operation;
         };
+    }
+
+    private boolean isTripsApi(HandlerMethod handlerMethod) {
+        RequestMapping classMapping = handlerMethod.getBeanType().getAnnotation(RequestMapping.class);
+        if (classMapping == null || classMapping.value().length == 0) {
+            return false;
+        }
+
+        return Arrays.stream(classMapping.value())
+                .anyMatch(path -> path != null && path.startsWith("/api/trips"));
+    }
+
+    /**
+     * Operation customizer for Tenant APIs - requires both Bearer token and X-Tenant-ID
+     */
+    private OperationCustomizer tenantOperationCustomizer() {
+        return (Operation operation, HandlerMethod handlerMethod) -> {
+            // Clear existing security requirements
+            if (operation.getSecurity() != null) {
+                operation.getSecurity().clear();
+            }
+
+            // Tenant APIs need both Bearer token and X-Tenant-ID header
+            operation.addSecurityItem(new SecurityRequirement().addList("bearerAuth"));
+
+            if (!isTenantSetupApi(handlerMethod)) {
+                operation.addSecurityItem(new SecurityRequirement().addList("X-Tenant-ID"));
+            }
+
+            return operation;
+        };
+    }
+
+    private boolean isTenantSetupApi(HandlerMethod handlerMethod) {
+        RequestMapping classMapping = handlerMethod.getBeanType().getAnnotation(RequestMapping.class);
+        RequestMapping methodMapping = AnnotatedElementUtils.findMergedAnnotation(handlerMethod.getMethod(), RequestMapping.class);
+
+        if (classMapping == null || classMapping.value().length == 0 || methodMapping == null || methodMapping.value().length == 0) {
+            return false;
+        }
+
+        RequestMethod[] methods = methodMapping.method();
+        if (methods.length > 0 && Arrays.stream(methods).noneMatch(RequestMethod.POST::equals)) {
+            return false;
+        }
+
+        return Arrays.stream(classMapping.value())
+                .flatMap(classPath -> Arrays.stream(methodMapping.value())
+                        .map(methodPath -> classPath + methodPath))
+                .anyMatch(path -> TENANT_SETUP_PATH_PATTERN.matcher(path).matches());
     }
 }

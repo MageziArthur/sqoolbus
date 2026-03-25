@@ -11,6 +11,7 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.context.annotation.Lazy;
+import org.springframework.core.env.Environment;
 import org.springframework.stereotype.Service;
 
 import javax.sql.DataSource;
@@ -30,9 +31,24 @@ public class TenantDataSourceService {
     @Autowired
     @Lazy
     private TenantRepository tenantRepository;
+
+    @Autowired
+    private Environment environment;
     
     @Value("${sqoolbus.multitenancy.default-tenant}")
     private String defaultTenant;
+
+    @Value("${spring.datasource.tenant.default.url}")
+    private String defaultTenantUrl;
+
+    @Value("${spring.datasource.tenant.default.username}")
+    private String defaultTenantUsername;
+
+    @Value("${spring.datasource.tenant.default.password}")
+    private String defaultTenantPassword;
+
+    @Value("${spring.datasource.tenant.default.driver-class-name}")
+    private String defaultTenantDriverClassName;
     
     // Cache for tenant datasources to avoid creating them repeatedly
     private final Map<String, DataSource> tenantDataSources = new ConcurrentHashMap<>();
@@ -103,12 +119,53 @@ public class TenantDataSourceService {
                 config.setUsername(tenant.getDatabaseUsername());
                 config.setPassword(tenant.getDatabasePassword());
                 config.setDriverClassName(tenant.getDatabaseDriver());
-                config.setMaximumPoolSize(tenant.getMaxPoolSize() != null ? tenant.getMaxPoolSize() : 10);
-                config.setMinimumIdle(tenant.getMinIdleSize() != null ? tenant.getMinIdleSize() : 2);
-                config.setConnectionTimeout(30000);
-                config.setIdleTimeout(600000);
-                config.setMaxLifetime(1800000);
-                config.setLeakDetectionThreshold(60000);
+
+                Integer configuredMaxPoolSize = resolveInteger(
+                        "sqoolbus.datasource.hikari.maximum-pool-size",
+                        "spring.datasource.tenant.default.hikari.maximum-pool-size"
+                );
+                Integer configuredMinIdle = resolveInteger(
+                        "sqoolbus.datasource.hikari.minimum-idle",
+                        "spring.datasource.tenant.default.hikari.minimum-idle"
+                );
+                Long configuredConnectionTimeout = resolveLong(
+                        "sqoolbus.datasource.hikari.connection-timeout",
+                        "spring.datasource.tenant.default.hikari.connection-timeout"
+                );
+                Long configuredIdleTimeout = resolveLong(
+                        "sqoolbus.datasource.hikari.idle-timeout",
+                        "spring.datasource.tenant.default.hikari.idle-timeout"
+                );
+                Long configuredMaxLifetime = resolveLong("sqoolbus.datasource.hikari.max-lifetime");
+                Long configuredLeakDetectionThreshold = resolveLong("sqoolbus.datasource.hikari.leak-detection-threshold");
+
+                if (tenant.getMaxPoolSize() != null) {
+                    config.setMaximumPoolSize(tenant.getMaxPoolSize());
+                } else if (configuredMaxPoolSize != null) {
+                    config.setMaximumPoolSize(configuredMaxPoolSize);
+                }
+
+                if (tenant.getMinIdleSize() != null) {
+                    config.setMinimumIdle(tenant.getMinIdleSize());
+                } else if (configuredMinIdle != null) {
+                    config.setMinimumIdle(configuredMinIdle);
+                }
+
+                if (configuredConnectionTimeout != null) {
+                    config.setConnectionTimeout(configuredConnectionTimeout);
+                }
+
+                if (configuredIdleTimeout != null) {
+                    config.setIdleTimeout(configuredIdleTimeout);
+                }
+
+                if (configuredMaxLifetime != null) {
+                    config.setMaxLifetime(configuredMaxLifetime);
+                }
+
+                if (configuredLeakDetectionThreshold != null) {
+                    config.setLeakDetectionThreshold(configuredLeakDetectionThreshold);
+                }
                 
                 // Connection pool name for debugging
                 config.setPoolName("TenantPool-" + tenantId);
@@ -133,18 +190,65 @@ public class TenantDataSourceService {
      */
     private DataSource createDefaultTenantDataSource() {
         HikariConfig config = new HikariConfig();
-        config.setJdbcUrl("jdbc:mysql://localhost:3306/default_sqool?useSSL=false&allowPublicKeyRetrieval=true&serverTimezone=UTC");
-        config.setUsername("root");
-        config.setPassword("rootpassword");
-        config.setDriverClassName("com.mysql.cj.jdbc.Driver");
-        config.setMaximumPoolSize(10);
-        config.setMinimumIdle(2);
-        config.setConnectionTimeout(30000);
-        config.setIdleTimeout(600000);
-        config.setMaxLifetime(1800000);
+        config.setJdbcUrl(defaultTenantUrl);
+        config.setUsername(defaultTenantUsername);
+        config.setPassword(defaultTenantPassword);
+        config.setDriverClassName(defaultTenantDriverClassName);
+
+        Integer configuredMaxPoolSize = resolveInteger("spring.datasource.tenant.default.hikari.maximum-pool-size");
+        Integer configuredMinIdle = resolveInteger("spring.datasource.tenant.default.hikari.minimum-idle");
+        Long configuredConnectionTimeout = resolveLong("spring.datasource.tenant.default.hikari.connection-timeout");
+        Long configuredIdleTimeout = resolveLong("spring.datasource.tenant.default.hikari.idle-timeout");
+        Long configuredMaxLifetime = resolveLong("sqoolbus.datasource.hikari.max-lifetime");
+        Long configuredLeakDetectionThreshold = resolveLong("sqoolbus.datasource.hikari.leak-detection-threshold");
+
+        if (configuredMaxPoolSize != null) {
+            config.setMaximumPoolSize(configuredMaxPoolSize);
+        }
+
+        if (configuredMinIdle != null) {
+            config.setMinimumIdle(configuredMinIdle);
+        }
+
+        if (configuredConnectionTimeout != null) {
+            config.setConnectionTimeout(configuredConnectionTimeout);
+        }
+
+        if (configuredIdleTimeout != null) {
+            config.setIdleTimeout(configuredIdleTimeout);
+        }
+
+        if (configuredMaxLifetime != null) {
+            config.setMaxLifetime(configuredMaxLifetime);
+        }
+
+        if (configuredLeakDetectionThreshold != null) {
+            config.setLeakDetectionThreshold(configuredLeakDetectionThreshold);
+        }
+
         config.setPoolName("DefaultTenantPool");
         
         return new HikariDataSource(config);
+    }
+
+    private Integer resolveInteger(String... keys) {
+        for (String key : keys) {
+            Integer value = environment.getProperty(key, Integer.class);
+            if (value != null) {
+                return value;
+            }
+        }
+        return null;
+    }
+
+    private Long resolveLong(String... keys) {
+        for (String key : keys) {
+            Long value = environment.getProperty(key, Long.class);
+            if (value != null) {
+                return value;
+            }
+        }
+        return null;
     }
     
     /**

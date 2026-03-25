@@ -3,8 +3,11 @@ package com.sqool.sqoolbus.tenant.controller;
 import com.fasterxml.jackson.databind.annotation.JsonDeserialize;
 import com.sqool.sqoolbus.config.FlexibleLocalTimeDeserializer;
 import com.sqool.sqoolbus.dto.ErrorResponse;
+import com.sqool.sqoolbus.dto.RouteAssignedDriverResponse;
+import com.sqool.sqoolbus.dto.RouteDetailsResponse;
 import com.sqool.sqoolbus.security.Permission;
 import com.sqool.sqoolbus.security.RequirePermissions;
+import com.sqool.sqoolbus.security.SecurityUtils;
 import com.sqool.sqoolbus.tenant.entity.hail.Route;
 import com.sqool.sqoolbus.tenant.entity.hail.School;
 import com.sqool.sqoolbus.tenant.service.RouteService;
@@ -104,7 +107,7 @@ public class RouteController {
     
     @GetMapping("/school/{schoolId}")
     @RequirePermissions(Permission.PERM_VIEW_ROUTES)
-    @Operation(summary = "Get routes by school", description = "Retrieve all routes belonging to a specific school")
+    @Operation(summary = "Get routes", description = "Retrieve all routes in the current tenant. schoolId is ignored for backward compatibility")
     @ApiResponses(value = {
             @ApiResponse(responseCode = "200", description = "Routes retrieved successfully",
                     content = @Content(mediaType = "application/json", schema = @Schema(implementation = Route.class))),
@@ -118,15 +121,79 @@ public class RouteController {
     public ResponseEntity<List<Route>> getRoutesBySchool(
             @Parameter(description = "ID of the school", required = true)
             @PathVariable Long schoolId) {
-        List<Route> routes = routeService.findBySchoolId(schoolId);
+        List<Route> routes = routeService.findAll();
         return ResponseEntity.ok(routes);
     }
+
+        @GetMapping("/driver/{driverId}")
+        @RequirePermissions(Permission.PERM_VIEW_ROUTES)
+        @Operation(summary = "Get routes assigned to a driver", description = "Retrieve all routes currently assigned to a specific driver through bus assignments")
+        @ApiResponses(value = {
+            @ApiResponse(responseCode = "200", description = "Routes retrieved successfully",
+                content = @Content(mediaType = "application/json", schema = @Schema(implementation = Route.class))),
+            @ApiResponse(responseCode = "404", description = "Driver not found",
+                content = @Content(mediaType = "application/json", schema = @Schema(implementation = ErrorResponse.class))),
+            @ApiResponse(responseCode = "401", description = "Unauthorized",
+                content = @Content(mediaType = "application/json", schema = @Schema(implementation = ErrorResponse.class))),
+            @ApiResponse(responseCode = "403", description = "Forbidden",
+                content = @Content(mediaType = "application/json", schema = @Schema(implementation = ErrorResponse.class)))
+        })
+        public ResponseEntity<List<Route>> getRoutesAssignedToDriver(
+            @Parameter(description = "ID of the driver", required = true, example = "5")
+            @PathVariable Long driverId) {
+        List<Route> routes = routeService.getRoutesAssignedToDriver(driverId);
+        return ResponseEntity.ok(routes);
+        }
+
+        @GetMapping("/{id}/driver")
+        @RequirePermissions(Permission.PERM_VIEW_ROUTES)
+        @Operation(summary = "Get driver assigned to route", description = "Retrieve the driver currently assigned to the specified route through bus assignment")
+        @ApiResponses(value = {
+            @ApiResponse(responseCode = "200", description = "Assigned driver retrieved successfully",
+                content = @Content(mediaType = "application/json", schema = @Schema(implementation = RouteAssignedDriverResponse.class))),
+            @ApiResponse(responseCode = "404", description = "Route not found or no driver assigned",
+                content = @Content(mediaType = "application/json", schema = @Schema(implementation = ErrorResponse.class))),
+            @ApiResponse(responseCode = "401", description = "Unauthorized",
+                content = @Content(mediaType = "application/json", schema = @Schema(implementation = ErrorResponse.class))),
+            @ApiResponse(responseCode = "403", description = "Forbidden",
+                content = @Content(mediaType = "application/json", schema = @Schema(implementation = ErrorResponse.class)))
+        })
+        public ResponseEntity<RouteAssignedDriverResponse> getDriverAssignedToRoute(
+            @Parameter(description = "ID of the route", required = true, example = "10")
+            @PathVariable("id") Long routeId) {
+        RouteAssignedDriverResponse response = routeService.getDriverAssignedToRoute(routeId);
+        return ResponseEntity.ok(response);
+        }
+
+        @GetMapping("/{id}/details")
+        @RequirePermissions(Permission.PERM_VIEW_ROUTES)
+        @Operation(summary = "Get route details", description = "Retrieve route with assigned driver entity, assigned bus entity, and student entities in one response")
+        @ApiResponses(value = {
+        @ApiResponse(responseCode = "200", description = "Route details retrieved successfully",
+            content = @Content(mediaType = "application/json", schema = @Schema(implementation = RouteDetailsResponse.class))),
+        @ApiResponse(responseCode = "404", description = "Route not found",
+            content = @Content(mediaType = "application/json", schema = @Schema(implementation = ErrorResponse.class))),
+        @ApiResponse(responseCode = "401", description = "Unauthorized",
+            content = @Content(mediaType = "application/json", schema = @Schema(implementation = ErrorResponse.class))),
+        @ApiResponse(responseCode = "403", description = "Forbidden",
+            content = @Content(mediaType = "application/json", schema = @Schema(implementation = ErrorResponse.class)))
+        })
+        public ResponseEntity<RouteDetailsResponse> getRouteDetails(
+            @Parameter(description = "ID of the route", required = true, example = "10")
+            @PathVariable("id") Long routeId) {
+        RouteDetailsResponse response = routeService.getRouteDetails(routeId);
+        return ResponseEntity.ok(response);
+        }
     
     @PostMapping
     @RequirePermissions(Permission.PERM_CREATE_ROUTES)
     public ResponseEntity<Route> createRoute(@Valid @RequestBody CreateRouteRequest request) {
         try {
-            Optional<School> school = schoolService.findById(request.getSchoolId());
+            Long effectiveSchoolId = SecurityUtils.resolveEffectiveSchoolId(request.getSchoolId());
+            if (effectiveSchoolId == null) {
+                return ResponseEntity.badRequest().build();
+            }
+            Optional<School> school = schoolService.findById(effectiveSchoolId);
             if (!school.isPresent()) {
                 return ResponseEntity.badRequest().build();
             }

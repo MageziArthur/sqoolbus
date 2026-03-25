@@ -4,6 +4,7 @@ import com.sqool.sqoolbus.config.multitenancy.TenantContext;
 import com.sqool.sqoolbus.dto.*;
 import com.sqool.sqoolbus.exception.DuplicateResourceException;
 import com.sqool.sqoolbus.exception.ResourceNotFoundException;
+import com.sqool.sqoolbus.security.SecurityUtils;
 import com.sqool.sqoolbus.tenant.entity.User;
 import com.sqool.sqoolbus.tenant.entity.hail.*;
 import com.sqool.sqoolbus.tenant.repository.*;
@@ -13,6 +14,7 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.time.LocalDateTime;
 import java.util.List;
 import java.util.stream.Collectors;
 
@@ -37,6 +39,8 @@ public class BusService {
     public BusResponse createBus(BusRequest request, String tenantId) {
         try {
             TenantContext.setTenantId(tenantId);
+
+            Long effectiveSchoolId = SecurityUtils.requireEffectiveSchoolId(request.getSchoolId());
             
             // Check for duplicate bus number
             if (busRepository.findByBusNumber(request.getBusNumber()).isPresent()) {
@@ -54,8 +58,8 @@ public class BusService {
             }
             
             // Find school
-            School school = schoolRepository.findById(request.getSchoolId())
-                    .orElseThrow(() -> new ResourceNotFoundException("School", "id", String.valueOf(request.getSchoolId())));
+                School school = schoolRepository.findById(effectiveSchoolId)
+                    .orElseThrow(() -> new ResourceNotFoundException("School", "id", String.valueOf(effectiveSchoolId)));
             
             // Create bus entity
             Bus bus = new Bus();
@@ -118,51 +122,66 @@ public class BusService {
     }
     
     @Transactional(readOnly = true)
-    public List<BusResponse> getAllBusesBySchool(Long schoolId, String tenantId) {
+    public List<BusResponse> getAllBuses(String tenantId) {
         try {
             TenantContext.setTenantId(tenantId);
-            
-            List<Bus> buses = busRepository.findBySchoolId(schoolId);
-            
+
+            List<Bus> buses = busRepository.findAllActive();
+
             return buses.stream()
                     .map(this::mapToResponse)
                     .collect(Collectors.toList());
-            
+
         } finally {
             TenantContext.clear();
         }
     }
+
+    @Transactional(readOnly = true)
+    public List<BusResponse> getAllBusesBySchool(Long schoolId, String tenantId) {
+        return getAllBuses(tenantId);
+    }
     
+    @Transactional(readOnly = true)
+    public List<BusResponse> getAvailableBusesWithoutRoute(String tenantId) {
+        try {
+            TenantContext.setTenantId(tenantId);
+
+            List<Bus> buses = busRepository.findAvailableBusesWithoutRoute();
+
+            return buses.stream()
+                    .map(this::mapToResponse)
+                    .collect(Collectors.toList());
+
+        } finally {
+            TenantContext.clear();
+        }
+    }
+
     @Transactional(readOnly = true)
     public List<BusResponse> getAvailableBusesWithoutRoute(Long schoolId, String tenantId) {
+        return getAvailableBusesWithoutRoute(tenantId);
+    }
+    
+    @Transactional(readOnly = true)
+    public List<BusResponse> getAvailableBusesWithoutDriver(String tenantId) {
         try {
             TenantContext.setTenantId(tenantId);
-            
-            List<Bus> buses = busRepository.findAvailableBusesWithoutRoute(schoolId);
-            
+
+            List<Bus> buses = busRepository.findAvailableBusesWithoutDriver();
+
             return buses.stream()
                     .map(this::mapToResponse)
                     .collect(Collectors.toList());
-            
+
         } finally {
             TenantContext.clear();
         }
     }
-    
+
     @Transactional(readOnly = true)
     public List<BusResponse> getAvailableBusesWithoutDriver(Long schoolId, String tenantId) {
-        try {
-            TenantContext.setTenantId(tenantId);
-            
-            List<Bus> buses = busRepository.findAvailableBusesWithoutDriver(schoolId);
-            
-            return buses.stream()
-                    .map(this::mapToResponse)
-                    .collect(Collectors.toList());
-            
-        } finally {
-            TenantContext.clear();
-        }
+        return getAvailableBusesWithoutDriver(tenantId);
     }
     
     @Transactional
@@ -370,6 +389,28 @@ public class BusService {
             
             logger.info("Deleted bus: {}", bus.getBusNumber());
             
+        } finally {
+            TenantContext.clear();
+        }
+    }
+
+    @Transactional
+    public BusResponse updateBusLocation(Long busId, Double latitude, Double longitude, String tenantId) {
+        try {
+            TenantContext.setTenantId(tenantId);
+
+            Bus bus = busRepository.findById(busId)
+                    .orElseThrow(() -> new ResourceNotFoundException("Bus", "id", String.valueOf(busId)));
+
+            bus.setLastLocationLatitude(latitude);
+            bus.setLastLocationLongitude(longitude);
+            bus.setLastLocationUpdate(LocalDateTime.now());
+
+            bus = busRepository.save(bus);
+
+            logger.info("Updated location for bus: {} to ({}, {})", bus.getBusNumber(), latitude, longitude);
+
+            return mapToResponse(bus);
         } finally {
             TenantContext.clear();
         }

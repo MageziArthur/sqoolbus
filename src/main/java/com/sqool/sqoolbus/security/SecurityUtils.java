@@ -21,6 +21,33 @@ public class SecurityUtils {
         
         return null;
     }
+
+    /**
+     * Resolve effective school ID for tenant-scoped operations.
+     * If the authenticated user has a school context, it always takes precedence.
+     *
+     * @param requestedSchoolId school ID provided by request payload/path
+     * @return effective school ID or null if neither context nor request has one
+     */
+    public static Long resolveEffectiveSchoolId(Long requestedSchoolId) {
+        Long currentUserSchoolId = getCurrentUserSchoolId();
+        return currentUserSchoolId != null ? currentUserSchoolId : requestedSchoolId;
+    }
+
+    /**
+     * Resolve effective school ID and require it to be present.
+     *
+     * @param requestedSchoolId school ID provided by request payload/path
+     * @return effective school ID
+     * @throws IllegalStateException when no school context is available
+     */
+    public static Long requireEffectiveSchoolId(Long requestedSchoolId) {
+        Long effectiveSchoolId = resolveEffectiveSchoolId(requestedSchoolId);
+        if (effectiveSchoolId == null) {
+            throw new IllegalStateException("School context is required in tenant scope");
+        }
+        return effectiveSchoolId;
+    }
     
     /**
      * Check if the current user has SYSTEM_ADMIN role

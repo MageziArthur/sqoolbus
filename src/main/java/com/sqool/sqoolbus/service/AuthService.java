@@ -222,12 +222,15 @@ public class AuthService {
                 TenantContext.setTenantId(defaultTenant);
             }
             
-            // Validate school exists
-            Optional<School> schoolOptional = schoolRepository.findById(request.getSchoolId());
-            if (schoolOptional.isEmpty()) {
-                throw new ResourceNotFoundException("School", "id", String.valueOf(request.getSchoolId()));
+            // Validate school if provided
+            School school = null;
+            if (request.getSchoolId() != null) {
+                Optional<School> schoolOptional = schoolRepository.findById(request.getSchoolId());
+                if (schoolOptional.isEmpty()) {
+                    throw new ResourceNotFoundException("School", "id", String.valueOf(request.getSchoolId()));
+                }
+                school = schoolOptional.get();
             }
-            School school = schoolOptional.get();
             
             // Check if username already exists
             if (userRepository.findByUsername(request.getUsername()).isPresent()) {
@@ -261,13 +264,20 @@ public class AuthService {
             // Assign PARENT role
             user.getRoles().add(parentRole);
             
-            // Save user first
+            // Save user first to get ID for generating unique code
             User savedUser = userRepository.save(user);
+            
+            // Generate unique 6-digit user code
+            String userCode = generateUniqueUserCode(savedUser.getId());
+            savedUser.setUsername(userCode); // Update username with generated code
+            savedUser = userRepository.save(savedUser);
             
             // Create user profile with parent-specific information
             UserProfile profile = new UserProfile();
             profile.setUser(savedUser);
-            profile.setSchool(school);
+            if (school != null) {
+                profile.setSchool(school);
+            }
             profile.setPhoneNumber(request.getPhoneNumber());
             profile.setEmergencyContact(request.getEmergencyContact());
             profile.setEmergencyContactName(request.getEmergencyContactName());
@@ -287,8 +297,9 @@ public class AuthService {
             savedUser.setProfile(savedProfile);
             savedUser = userRepository.save(savedUser);
             
-            logger.info("Parent user registered successfully: {} for school: {}", 
-                       savedUser.getUsername(), school.getName());
+            logger.info("Parent user registered successfully: {} (code: {}){}",
+                       savedUser.getEmail(), userCode,
+                       school != null ? " for school: " + school.getName() : " without school assignment");
             
             // Extract roles and permissions
             Set<String> roles = savedUser.getRoles().stream()
@@ -306,7 +317,7 @@ public class AuthService {
                     TenantContext.getTenantId(),
                     roles,
                     permissions,
-                    school.getId()
+                    school != null ? school.getId() : null
             );
             
             // Create response objects
@@ -337,14 +348,17 @@ public class AuthService {
                     savedProfile.getPreferredContactMethod()
             );
             
-            ParentSignupResponse.SchoolInfo schoolInfo = new ParentSignupResponse.SchoolInfo(
-                    school.getId(),
-                    school.getName(),
-                    school.getCode(),
-                    school.getAddress(),
-                    school.getPhoneNumber(),
-                    school.getEmail()
-            );
+            ParentSignupResponse.SchoolInfo schoolInfo = null;
+            if (school != null) {
+                schoolInfo = new ParentSignupResponse.SchoolInfo(
+                        school.getId(),
+                        school.getName(),
+                        school.getCode(),
+                        school.getAddress(),
+                        school.getPhoneNumber(),
+                        school.getEmail()
+                );
+            }
             
             return new ParentSignupResponse(
                     token,
@@ -358,5 +372,15 @@ public class AuthService {
         } finally {
             TenantContext.clear();
         }
+    }
+    
+    /**
+     * Generate a unique 6-digit user code based on user ID
+     * Format: PRTxxxxxx or RDRxxxxxx (where x is a digit)
+     */
+    private String generateUniqueUserCode(Long userId) {
+        // Generate a 6-digit code by padding the user ID
+        String paddedId = String.format("%06d", userId);
+        return "PRT" + paddedId;
     }
 }

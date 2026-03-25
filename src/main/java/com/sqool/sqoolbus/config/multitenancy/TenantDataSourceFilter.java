@@ -1,5 +1,6 @@
 package com.sqool.sqoolbus.config.multitenancy;
 
+import com.sqool.sqoolbus.security.JwtTokenProvider;
 import com.sqool.sqoolbus.service.TenantDataSourceService;
 import jakarta.servlet.*;
 import jakarta.servlet.http.HttpServletRequest;
@@ -11,6 +12,7 @@ import org.springframework.beans.factory.annotation.Value;
 import org.springframework.core.annotation.Order;
 import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Component;
+import org.springframework.http.HttpMethod;
 
 import javax.sql.DataSource;
 import java.io.IOException;
@@ -31,6 +33,10 @@ public class TenantDataSourceFilter implements Filter {
     // Paths that don't require tenant validation (master database and public endpoints)
     private static final List<String> EXCLUDED_PATHS = Arrays.asList(
         "/api/master",
+        "/api/users/parent",
+        "/api/users/rider",
+        "/api/tenants/register",
+        "/api/tenants/validate",
         "/h2-console",
         "/error",
         "/favicon.ico",
@@ -43,6 +49,9 @@ public class TenantDataSourceFilter implements Filter {
     @Autowired
     private TenantDataSourceService tenantDataSourceService;
     
+    @Autowired
+    private JwtTokenProvider jwtTokenProvider;
+    
     @Override
     public void doFilter(ServletRequest request, ServletResponse response, FilterChain chain)
             throws IOException, ServletException {
@@ -52,12 +61,27 @@ public class TenantDataSourceFilter implements Filter {
         
         String requestPath = httpRequest.getRequestURI();
         logger.debug("Processing request for path: {}", requestPath);
+
+        if (HttpMethod.OPTIONS.matches(httpRequest.getMethod())) {
+            chain.doFilter(request, response);
+            return;
+        }
         
         // Skip tenant validation for excluded paths
         if (isExcludedPath(requestPath)) {
             logger.debug("Skipping tenant validation for excluded path: {}", requestPath);
             chain.doFilter(request, response);
             return;
+        }
+        
+        // Check if this is a tenant management endpoint with master token
+        if (requestPath.startsWith("/api/tenants/")) {
+            String token = extractToken(httpRequest);
+            if (token != null && isMasterToken(token)) {
+                logger.debug("Master token detected for tenant management endpoint - skipping tenant validation");
+                chain.doFilter(request, response);
+                return;
+            }
         }
         
         try {
@@ -73,6 +97,27 @@ public class TenantDataSourceFilter implements Filter {
             }
             
             logger.debug("Tenant ID from header: {}", tenantId);
+            
+            // Validate that the JWT token's tenant ID matches the header tenant ID
+            String token = extractToken(httpRequest);
+            if (token != null && !isMasterToken(token)) {
+                try {
+                    if (jwtTokenProvider.validateToken(token)) {
+                        String tokenTenantId = jwtTokenProvider.getTenantIdFromToken(token);
+                        if (tokenTenantId != null && !tokenTenantId.equals(tenantId)) {
+                            logger.error("Token tenant ID mismatch. Token tenant: {}, Header tenant: {}", 
+                                tokenTenantId, tenantId);
+                            sendErrorResponse(httpResponse, HttpStatus.FORBIDDEN, 
+                                "Token is not valid for tenant: " + tenantId);
+                            return;
+                        }
+                        logger.debug("Token tenant ID validated: {}", tokenTenantId);
+                    }
+                } catch (Exception e) {
+                    logger.debug("Token validation failed in tenant filter: {}", e.getMessage());
+                    // Continue processing - JWT filter will handle authentication
+                }
+            }
             
             // Validate tenant and get datasource
             if (!tenantDataSourceService.isTenantValid(tenantId)) {
@@ -117,7 +162,8 @@ public class TenantDataSourceFilter implements Filter {
      * Check if the request path should be excluded from tenant validation
      */
     private boolean isExcludedPath(String requestPath) {
-        return EXCLUDED_PATHS.stream().anyMatch(requestPath::startsWith);
+        return EXCLUDED_PATHS.stream().anyMatch(requestPath::startsWith)
+                || requestPath.matches("^/api/tenants/[^/]+/setup$");
     }
     
     /**
@@ -138,6 +184,32 @@ public class TenantDataSourceFilter implements Filter {
         
         response.getWriter().write(jsonResponse);
         response.getWriter().flush();
+    }
+    
+    /**
+     * Extract JWT token from Authorization header
+     */
+    private String extractToken(HttpServletRequest request) {
+        String bearerToken = request.getHeader("Authorization");
+        if (bearerToken != null && bearerToken.startsWith("Bearer ")) {
+            return bearerToken.substring(7);
+        }
+        return null;
+    }
+    
+    /**
+     * Check if the token is a master token
+     */
+    private boolean isMasterToken(String token) {
+        try {
+            if (jwtTokenProvider.validateToken(token)) {
+                String tokenType = jwtTokenProvider.getTokenType(token);
+                return "master".equals(tokenType);
+            }
+        } catch (Exception e) {
+            logger.debug("Error checking token type: {}", e.getMessage());
+        }
+        return false;
     }
     
     @Override

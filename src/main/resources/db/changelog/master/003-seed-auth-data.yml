@@ -53,6 +53,35 @@ databaseChangeLog:
                   valueBoolean: true
 
   - changeSet:
+      id: 003-seed-parent-rider-roles
+      author: sqoolbus
+      changes:
+        - insert:
+            tableName: roles
+            columns:
+              - column:
+                  name: name
+                  value: "PARENT"
+              - column:
+                  name: description
+                  value: "Parent user for rider and pupil management"
+              - column:
+                  name: is_active
+                  valueBoolean: true
+        - insert:
+            tableName: roles
+            columns:
+              - column:
+                  name: name
+                  value: "RIDER"
+              - column:
+                  name: description
+                  value: "Rider user for trip and route operations"
+              - column:
+                  name: is_active
+                  valueBoolean: true
+
+  - changeSet:
       id: 003-seed-default-permissions
       author: sqoolbus
       changes:

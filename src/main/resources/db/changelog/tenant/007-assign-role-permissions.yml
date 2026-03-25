@@ -84,44 +84,44 @@ databaseChangeLog:
   - changeSet:
       id: 5
       author: sqoolbus
-      comment: Create sample school for testing
+      comment: Create default school
       changes:
         - insert:
             tableName: school
             columns:
               - column:
                   name: name
-                  value: "Greenwood Elementary School"
+                  value: "Default School"
               - column:
                   name: school_code
-                  value: "GES001"
+                  value: "DEFAULT_SCHOOL"
               - column:
                   name: school_type
-                  value: "ELEMENTARY"
+                  value: "MIXED"
               - column:
                   name: address
-                  value: "123 Oak Street"
+                  value: "123 Default Street"
               - column:
                   name: city
-                  value: "Springfield"
+                  value: "Default City"
               - column:
                   name: state
-                  value: "IL"
+                  value: "DC"
               - column:
                   name: zip_code
-                  value: "62701"
+                  value: "00000"
               - column:
                   name: phone_number
-                  value: "(555) 123-4567"
+                  value: "+10000000000"
               - column:
                   name: email
-                  value: "admin@greenwood.edu"
+                  value: "admin@default.school"
               - column:
                   name: principal_name
-                  value: "Dr. Sarah Johnson"
+                  value: "Default Principal"
               - column:
                   name: principal_contact
-                  value: "(555) 123-4567"
+                  value: "+10000000000"
               - column:
                   name: latitude
                   value: 39.7817
@@ -202,7 +202,7 @@ databaseChangeLog:
                   value: -89.6501
               - column:
                   name: school_id
-                  valueComputed: "(SELECT id FROM school WHERE school_code = 'GES001')"
+                  valueComputed: "(SELECT id FROM school WHERE school_code = 'DEFAULT_SCHOOL')"
               - column:
                   name: created_by
                   value: "system"

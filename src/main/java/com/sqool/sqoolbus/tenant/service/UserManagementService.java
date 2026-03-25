@@ -55,6 +55,13 @@ public class UserManagementService {
         User user = createUser(username, email, password, firstName, lastName);
         user = userRepository.save(user);
         
+        // Generate unique 6-digit code for rider if username not provided
+        if (username == null || username.trim().isEmpty()) {
+            String riderCode = generateUniqueRiderCode(user.getId());
+            user.setUsername(riderCode);
+            user = userRepository.save(user);
+        }
+        
         addRoleToUser(user, UserRole.RIDER);
         
         // Create rider profile with driver-specific information
@@ -66,6 +73,15 @@ public class UserManagementService {
         userProfileRepository.save(profile);
         
         return userRepository.save(user);
+    }
+    
+    /**
+     * Generate a unique 6-digit rider code based on user ID
+     * Format: RDRxxxxxx (where x is a digit)
+     */
+    private String generateUniqueRiderCode(Long userId) {
+        String paddedId = String.format("%06d", userId);
+        return "RDR" + paddedId;
     }
     
     /**

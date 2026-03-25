@@ -1,10 +1,14 @@
 package com.sqool.sqoolbus.tenant.service;
 
 import com.sqool.sqoolbus.exception.ResourceNotFoundException;
+import com.sqool.sqoolbus.dto.RouteDetailsResponse;
+import com.sqool.sqoolbus.dto.RouteAssignedDriverResponse;
 import com.sqool.sqoolbus.security.SecurityUtils;
+import com.sqool.sqoolbus.tenant.entity.hail.Bus;
 import com.sqool.sqoolbus.tenant.entity.hail.Route;
 import com.sqool.sqoolbus.tenant.entity.hail.Pupil;
 import com.sqool.sqoolbus.tenant.entity.User;
+import com.sqool.sqoolbus.tenant.repository.BusRepository;
 import com.sqool.sqoolbus.tenant.repository.RouteRepository;
 import com.sqool.sqoolbus.tenant.repository.PupilRepository;
 import com.sqool.sqoolbus.tenant.repository.UserRepository;
@@ -14,6 +18,8 @@ import org.springframework.transaction.annotation.Transactional;
 
 import java.util.List;
 import java.util.Optional;
+import java.util.Comparator;
+import java.util.stream.Collectors;
 
 /**
  * Service for managing routes
@@ -30,6 +36,9 @@ public class RouteService {
     
     @Autowired
     private PupilRepository pupilRepository;
+
+    @Autowired
+    private BusRepository busRepository;
     
     public List<Route> findAll() {
         // Return all routes for current tenant (tenant isolation handled at DB level)
@@ -156,5 +165,56 @@ public class RouteService {
         // Refresh route to get updated pupils list
         return routeRepository.findById(routeId)
                 .orElseThrow(() -> new ResourceNotFoundException("Route", "id", routeId.toString()));
+    }
+
+    @Transactional(readOnly = true)
+    public List<Route> getRoutesAssignedToDriver(Long driverId) {
+        // Driver users are master-managed, so this endpoint resolves routes purely
+        // from tenant bus assignments by driver ID and returns empty when none exist.
+        List<Bus> buses = busRepository.findAllByAssignedDriverId(driverId);
+
+        return buses.stream()
+                .map(Bus::getAssignedRoute)
+                .filter(route -> route != null)
+                .distinct()
+                .collect(Collectors.toList());
+    }
+
+        @Transactional(readOnly = true)
+        public RouteAssignedDriverResponse getDriverAssignedToRoute(Long routeId) {
+        Route route = routeRepository.findById(routeId)
+            .orElseThrow(() -> new ResourceNotFoundException("Route", "id", routeId.toString()));
+
+        List<Bus> assignedBuses = busRepository.findByAssignedRouteId(routeId);
+
+        Bus busWithDriver = assignedBuses.stream()
+            .filter(bus -> bus.getAssignedDriver() != null)
+            .findFirst()
+            .orElseThrow(() -> new ResourceNotFoundException("Driver assignment", "routeId", routeId.toString()));
+
+        return RouteAssignedDriverResponse.from(
+            busWithDriver.getAssignedDriver(),
+            busWithDriver.getId(),
+            busWithDriver.getBusNumber()
+        );
+        }
+
+    @Transactional(readOnly = true)
+    public RouteDetailsResponse getRouteDetails(Long routeId) {
+        Route route = routeRepository.findById(routeId)
+                .orElseThrow(() -> new ResourceNotFoundException("Route", "id", routeId.toString()));
+
+        List<Bus> assignedBuses = busRepository.findByAssignedRouteId(routeId);
+        Bus assignedBus = assignedBuses.stream()
+                .filter(bus -> bus.getAssignedDriver() != null)
+                .min(Comparator.comparing(Bus::getId))
+                .orElseGet(() -> assignedBuses.stream()
+                        .min(Comparator.comparing(Bus::getId))
+                        .orElse(null));
+
+        User assignedDriver = assignedBus != null ? assignedBus.getAssignedDriver() : null;
+        List<Pupil> students = pupilRepository.findByRouteId(routeId);
+
+        return new RouteDetailsResponse(route, assignedBus, assignedDriver, students);
     }
 }

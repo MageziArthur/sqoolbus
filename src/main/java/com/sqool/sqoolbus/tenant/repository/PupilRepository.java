@@ -23,6 +23,11 @@ public interface PupilRepository extends JpaRepository<Pupil, Long> {
      * Find pupils by school ID
      */
     List<Pupil> findBySchoolId(Long schoolId);
+
+    /**
+     * Find pupils by route ID
+     */
+    List<Pupil> findByRouteId(Long routeId);
     
     /**
      * Find active pupils

@@ -50,25 +50,26 @@ public class DatabaseInitializer implements ApplicationRunner {
     
     @Value("${sqoolbus.multitenancy.default-tenant}")
     private String defaultTenantId;
+
+    @Value("${sqoolbus.database.initialization.max-attempts:20}")
+    private int maxAttempts;
+
+    @Value("${sqoolbus.database.initialization.retry-delay-ms:3000}")
+    private long retryDelayMs;
     
     @Override
     public void run(ApplicationArguments args) throws Exception {
         logger.info("Starting database initialization...");
         
         try {
-            // First, create databases if they don't exist
-            createDatabasesIfNotExist();
-            
-            // Run master database migration
+            runWithRetry(this::createDatabasesIfNotExist, "database creation");
+
             logger.info("Running master database migration...");
-            liquibaseConfig.runMasterDatabaseMigration(masterDataSource);
-            
-            // Set default tenant context and run tenant migration
+            runWithRetry(() -> liquibaseConfig.runMasterDatabaseMigration(masterDataSource), "master database migration");
+
             logger.info("Running default tenant database migration...");
             TenantContext.setTenantId(defaultTenantId);
-            
-            // Create default tenant datasource from configuration
-            liquibaseConfig.runTenantDatabaseMigration(createDefaultTenantDataSource(), defaultTenantId);
+            runWithRetry(() -> liquibaseConfig.runTenantDatabaseMigration(createDefaultTenantDataSource(), defaultTenantId), "default tenant database migration");
             
             TenantContext.clear();
             
@@ -89,6 +90,27 @@ public class DatabaseInitializer implements ApplicationRunner {
         config.setMaximumPoolSize(5);
         config.setMinimumIdle(2);
         return new com.zaxxer.hikari.HikariDataSource(config);
+    }
+
+    private void runWithRetry(ThrowingRunnable action, String stepName) throws Exception {
+        Exception lastException = null;
+
+        for (int attempt = 1; attempt <= maxAttempts; attempt++) {
+            try {
+                action.run();
+                logger.info("{} succeeded on attempt {}/{}", stepName, attempt, maxAttempts);
+                return;
+            } catch (Exception exception) {
+                lastException = exception;
+                if (attempt == maxAttempts) {
+                    break;
+                }
+                logger.warn("{} failed on attempt {}/{}. Retrying in {} ms", stepName, attempt, maxAttempts, retryDelayMs);
+                Thread.sleep(retryDelayMs);
+            }
+        }
+
+        throw new RuntimeException("Failed after retries: " + stepName, lastException);
     }
     
     private void createDatabasesIfNotExist() throws Exception {
@@ -149,5 +171,10 @@ public class DatabaseInitializer implements ApplicationRunner {
             return dbPart;
         }
         throw new IllegalArgumentException("Could not extract database name from URL: " + jdbcUrl);
+    }
+
+    @FunctionalInterface
+    private interface ThrowingRunnable {
+        void run() throws Exception;
     }
 }

@@ -24,7 +24,8 @@ import java.util.Map;
 @EnableJpaRepositories(
     basePackages = "com.sqool.sqoolbus.master.repository",
     entityManagerFactoryRef = "masterEntityManagerFactory",
-    transactionManagerRef = "masterTransactionManager"
+    transactionManagerRef = "masterTransactionManager",
+    enableDefaultTransactions = true
 )
 public class MasterDatabaseConfig {
     
@@ -42,7 +43,7 @@ public class MasterDatabaseConfig {
         return properties.initializeDataSourceBuilder().type(HikariDataSource.class).build();
     }
     
-    @Bean
+    @Bean(name = "masterEntityManagerFactory")
     @Primary
     public LocalContainerEntityManagerFactoryBean masterEntityManagerFactory(
             EntityManagerFactoryBuilder builder,
@@ -53,6 +54,8 @@ public class MasterDatabaseConfig {
         properties.put("hibernate.dialect", "org.hibernate.dialect.MySQLDialect");
         properties.put("hibernate.show_sql", false);
         properties.put("hibernate.format_sql", true);
+        // Explicitly disable multi-tenancy for master
+        properties.put("hibernate.multiTenancy", "NONE");
         
         return builder
                 .dataSource(dataSource)

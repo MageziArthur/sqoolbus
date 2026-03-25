@@ -1,16 +1,17 @@
 package com.sqool.sqoolbus.tenant.controller;
 
+import com.sqool.sqoolbus.config.multitenancy.TenantContext;
 import com.sqool.sqoolbus.dto.ErrorResponse;
+import com.sqool.sqoolbus.master.service.CrossTenantService;
+import com.sqool.sqoolbus.security.SecurityUtils;
 import com.sqool.sqoolbus.security.Permission;
 import com.sqool.sqoolbus.security.RequirePermissions;
 import com.sqool.sqoolbus.tenant.entity.hail.Pupil;
 import com.sqool.sqoolbus.tenant.entity.hail.School;
 import com.sqool.sqoolbus.tenant.entity.hail.Route;
-import com.sqool.sqoolbus.tenant.entity.User;
 import com.sqool.sqoolbus.tenant.service.PupilService;
 import com.sqool.sqoolbus.tenant.service.SchoolService;
 import com.sqool.sqoolbus.tenant.service.RouteService;
-import com.sqool.sqoolbus.tenant.service.UserManagementService;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.Parameter;
 import io.swagger.v3.oas.annotations.media.Content;
@@ -25,6 +26,7 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.bind.annotation.*;
+import org.springframework.dao.DataIntegrityViolationException;
 
 import jakarta.validation.Valid;
 import java.time.LocalDate;
@@ -48,9 +50,9 @@ public class PupilController {
     
     @Autowired
     private RouteService routeService;
-    
+
     @Autowired
-    private UserManagementService userManagementService;
+    private CrossTenantService crossTenantService;
     
     @GetMapping
     @RequirePermissions(Permission.PERM_VIEW_PUPILS)
@@ -79,6 +81,13 @@ public class PupilController {
     
     @GetMapping("/school/{schoolId}")
     @RequirePermissions(Permission.PERM_VIEW_PUPILS)
+    @Operation(summary = "Get pupils by school", description = "Retrieve all pupils attached to the specified school in the tenant database")
+    @SecurityRequirement(name = "bearerAuth")
+    @ApiResponses(value = {
+        @ApiResponse(responseCode = "200", description = "Successfully retrieved pupils by school"),
+        @ApiResponse(responseCode = "403", description = "Forbidden"),
+        @ApiResponse(responseCode = "404", description = "School not found")
+    })
     public ResponseEntity<List<Pupil>> getPupilsBySchool(@PathVariable Long schoolId) {
         List<Pupil> pupils = pupilService.findBySchoolId(schoolId);
         return ResponseEntity.ok(pupils);
@@ -86,8 +95,75 @@ public class PupilController {
     
     @GetMapping("/parent/{parentId}")
     @RequirePermissions(Permission.PERM_VIEW_PUPILS)
-    public ResponseEntity<List<Pupil>> getPupilsByParent(@PathVariable Long parentId) {
-        List<Pupil> pupils = pupilService.findByParentId(parentId);
+    @Operation(summary = "Get students assigned to parent", description = "Retrieve students assigned to a parent ID (resolved from master mappings) within current tenant")
+    @SecurityRequirement(name = "bearerAuth")
+    @ApiResponses(value = {
+        @ApiResponse(responseCode = "200", description = "Successfully retrieved students assigned to parent"),
+        @ApiResponse(responseCode = "400", description = "Tenant context missing"),
+        @ApiResponse(responseCode = "404", description = "Parent not found")
+    })
+    public ResponseEntity<?> getPupilsByParent(@PathVariable Long parentId) {
+        String tenantId = TenantContext.getTenantId();
+        if (tenantId == null || tenantId.isBlank()) {
+            ErrorResponse errorResponse = new ErrorResponse(
+                    "INVALID_ARGUMENT",
+                    "Tenant context is required",
+                    HttpStatus.BAD_REQUEST.value(),
+                    "/api/pupils/parent/" + parentId
+            );
+            return ResponseEntity.badRequest().body(errorResponse);
+        }
+
+        List<CrossTenantService.PupilDTO> pupils = crossTenantService.getStudentsForParentInTenant(parentId, tenantId);
+        return ResponseEntity.ok(pupils);
+    }
+
+    @GetMapping("/parent/{parentId}/school/{schoolId}")
+    @RequirePermissions(Permission.PERM_VIEW_PUPILS)
+    @Operation(summary = "Get parent students by school", description = "Retrieve students assigned to a parent and attached to the specified school in current tenant")
+    @SecurityRequirement(name = "bearerAuth")
+    @ApiResponses(value = {
+        @ApiResponse(responseCode = "200", description = "Successfully retrieved students"),
+        @ApiResponse(responseCode = "400", description = "Tenant context missing")
+    })
+    public ResponseEntity<?> getPupilsByParentAndSchool(@PathVariable Long parentId, @PathVariable Long schoolId) {
+        String tenantId = TenantContext.getTenantId();
+        if (tenantId == null || tenantId.isBlank()) {
+            ErrorResponse errorResponse = new ErrorResponse(
+                    "INVALID_ARGUMENT",
+                    "Tenant context is required",
+                    HttpStatus.BAD_REQUEST.value(),
+                    "/api/pupils/parent/" + parentId + "/school/" + schoolId
+            );
+            return ResponseEntity.badRequest().body(errorResponse);
+        }
+
+        List<CrossTenantService.PupilDTO> pupils = crossTenantService
+                .getStudentsForParentInTenantBySchool(parentId, tenantId, schoolId);
+        return ResponseEntity.ok(pupils);
+    }
+
+    @GetMapping("/school/{schoolId}/assigned")
+    @RequirePermissions(Permission.PERM_VIEW_PUPILS)
+    @Operation(summary = "Get students attached to school", description = "Retrieve students attached to a school from master parent-student mappings, including parent details")
+    @SecurityRequirement(name = "bearerAuth")
+    @ApiResponses(value = {
+        @ApiResponse(responseCode = "200", description = "Successfully retrieved students attached to school"),
+        @ApiResponse(responseCode = "400", description = "Tenant context missing")
+    })
+    public ResponseEntity<?> getAssignedStudentsBySchool(@PathVariable Long schoolId) {
+        String tenantId = TenantContext.getTenantId();
+        if (tenantId == null || tenantId.isBlank()) {
+            ErrorResponse errorResponse = new ErrorResponse(
+                    "INVALID_ARGUMENT",
+                    "Tenant context is required",
+                    HttpStatus.BAD_REQUEST.value(),
+                    "/api/pupils/school/" + schoolId + "/assigned"
+            );
+            return ResponseEntity.badRequest().body(errorResponse);
+        }
+
+        List<CrossTenantService.PupilDTO> pupils = crossTenantService.getStudentsForSchoolInTenant(tenantId, schoolId);
         return ResponseEntity.ok(pupils);
     }
     
@@ -100,11 +176,49 @@ public class PupilController {
         @ApiResponse(responseCode = "400", description = "Invalid input data"),
         @ApiResponse(responseCode = "404", description = "School not found")
     })
-    public ResponseEntity<Pupil> createPupil(@Valid @RequestBody CreatePupilRequest request) {
+    public ResponseEntity<?> createPupil(@Valid @RequestBody CreatePupilRequest request) {
         try {
-            Optional<School> school = schoolService.findById(request.getSchoolId());
+            Long effectiveSchoolId = SecurityUtils.resolveEffectiveSchoolId(request.getSchoolId());
+            if (effectiveSchoolId == null) {
+                ErrorResponse errorResponse = new ErrorResponse(
+                        "INVALID_ARGUMENT",
+                        "School ID is required when adding a student to a school",
+                        HttpStatus.BAD_REQUEST.value(),
+                        "/api/pupils"
+                );
+                return ResponseEntity.badRequest().body(errorResponse);
+            }
+
+            Long currentUserSchoolId = SecurityUtils.getCurrentUserSchoolId();
+            if (currentUserSchoolId != null && request.getSchoolId() != null && !currentUserSchoolId.equals(request.getSchoolId())) {
+                ErrorResponse errorResponse = new ErrorResponse(
+                        "ACCESS_DENIED",
+                        "You can only add students to your assigned school",
+                        HttpStatus.FORBIDDEN.value(),
+                        "/api/pupils"
+                );
+                return ResponseEntity.status(HttpStatus.FORBIDDEN).body(errorResponse);
+            }
+
+                Optional<School> school = schoolService.findById(effectiveSchoolId);
             if (!school.isPresent()) {
-                return ResponseEntity.badRequest().build();
+                ErrorResponse errorResponse = new ErrorResponse(
+                        "RESOURCE_NOT_FOUND",
+                    "School not found with id: " + effectiveSchoolId,
+                        HttpStatus.NOT_FOUND.value(),
+                        "/api/pupils"
+                );
+                return ResponseEntity.status(HttpStatus.NOT_FOUND).body(errorResponse);
+            }
+
+            if (request.getStudentId() != null && pupilService.existsByStudentId(request.getStudentId())) {
+                ErrorResponse errorResponse = new ErrorResponse(
+                        "DUPLICATE_RESOURCE",
+                        "Student ID already exists: " + request.getStudentId(),
+                        HttpStatus.BAD_REQUEST.value(),
+                        "/api/pupils"
+                );
+                return ResponseEntity.badRequest().body(errorResponse);
             }
             
             Pupil pupil = new Pupil();
@@ -130,46 +244,108 @@ public class PupilController {
             // Optionally assign route if provided
             if (request.getRouteId() != null) {
                 Optional<Route> route = routeService.findById(request.getRouteId());
-                if (route.isPresent()) {
-                    pupil.setRoute(route.get());
+                if (!route.isPresent()) {
+                    ErrorResponse errorResponse = new ErrorResponse(
+                            "RESOURCE_NOT_FOUND",
+                            "Route not found with id: " + request.getRouteId(),
+                            HttpStatus.NOT_FOUND.value(),
+                            "/api/pupils"
+                    );
+                    return ResponseEntity.status(HttpStatus.NOT_FOUND).body(errorResponse);
                 }
+
+                if (route.get().getSchool() == null || !route.get().getSchool().getId().equals(effectiveSchoolId)) {
+                    ErrorResponse errorResponse = new ErrorResponse(
+                            "INVALID_ARGUMENT",
+                            "Selected route is not assigned to the selected school",
+                            HttpStatus.BAD_REQUEST.value(),
+                            "/api/pupils"
+                    );
+                    return ResponseEntity.badRequest().body(errorResponse);
+                }
+
+                pupil.setRoute(route.get());
             }
             
             Pupil savedPupil = pupilService.save(pupil);
             return ResponseEntity.status(HttpStatus.CREATED).body(savedPupil);
+        } catch (DataIntegrityViolationException e) {
+            ErrorResponse errorResponse = new ErrorResponse(
+                    "DUPLICATE_RESOURCE",
+                    "Unable to create student. Please ensure student ID is unique.",
+                    HttpStatus.BAD_REQUEST.value(),
+                    "/api/pupils"
+            );
+            return ResponseEntity.badRequest().body(errorResponse);
+        } catch (IllegalArgumentException e) {
+            ErrorResponse errorResponse = new ErrorResponse(
+                    "INVALID_ARGUMENT",
+                    e.getMessage(),
+                    HttpStatus.BAD_REQUEST.value(),
+                    "/api/pupils"
+            );
+            return ResponseEntity.badRequest().body(errorResponse);
         } catch (Exception e) {
-            return ResponseEntity.badRequest().build();
+            ErrorResponse errorResponse = new ErrorResponse(
+                    "INVALID_ARGUMENT",
+                    "Invalid input data",
+                    HttpStatus.BAD_REQUEST.value(),
+                    "/api/pupils"
+            );
+            return ResponseEntity.badRequest().body(errorResponse);
         }
     }
     
     @PostMapping("/{pupilId}/assign-parent/{parentId}")
     @RequirePermissions(Permission.PERM_UPDATE_PUPILS)
-    @Operation(summary = "Assign parent to pupil", description = "Assign a parent to an existing pupil")
+    @Operation(summary = "Assign parent to pupil", description = "Assign a parent to an existing pupil using parent ID from master tenant. Parent user must have PARENT role")
     @SecurityRequirement(name = "bearerAuth")
     @ApiResponses(value = {
         @ApiResponse(responseCode = "200", description = "Parent assigned successfully"),
         @ApiResponse(responseCode = "404", description = "Pupil or parent not found")
     })
-    public ResponseEntity<Pupil> assignParentToPupil(
+    public ResponseEntity<?> assignParentToPupil(
             @Parameter(description = "Pupil ID") @PathVariable Long pupilId,
             @Parameter(description = "Parent ID") @PathVariable Long parentId) {
         try {
             Optional<Pupil> pupilOpt = pupilService.findById(pupilId);
             if (!pupilOpt.isPresent()) {
-                return ResponseEntity.notFound().build();
+                ErrorResponse errorResponse = new ErrorResponse(
+                        "RESOURCE_NOT_FOUND",
+                        "Pupil not found with id: " + pupilId,
+                        HttpStatus.NOT_FOUND.value(),
+                        "/api/pupils/" + pupilId + "/assign-parent/" + parentId
+                );
+                return ResponseEntity.status(HttpStatus.NOT_FOUND).body(errorResponse);
             }
-            
-            User parent = userManagementService.findUserById(parentId);
-            if (parent == null) {
-                return ResponseEntity.notFound().build();
-            }
-            
+
             Pupil pupil = pupilOpt.get();
-            pupil.setParent(parent);
-            Pupil updatedPupil = pupilService.save(pupil);
-            return ResponseEntity.ok(updatedPupil);
+            pupilService.assignParentFromMaster(parentId, pupil);
+            return ResponseEntity.ok(pupil);
+        } catch (IllegalArgumentException e) {
+            ErrorResponse errorResponse = new ErrorResponse(
+                    "INVALID_ARGUMENT",
+                    e.getMessage(),
+                    HttpStatus.BAD_REQUEST.value(),
+                    "/api/pupils/" + pupilId + "/assign-parent/" + parentId
+            );
+            return ResponseEntity.badRequest().body(errorResponse);
+        } catch (RuntimeException e) {
+            ErrorResponse errorResponse = new ErrorResponse(
+                    "RESOURCE_NOT_FOUND",
+                    e.getMessage(),
+                    HttpStatus.NOT_FOUND.value(),
+                    "/api/pupils/" + pupilId + "/assign-parent/" + parentId
+            );
+            return ResponseEntity.status(HttpStatus.NOT_FOUND).body(errorResponse);
         } catch (Exception e) {
-            return ResponseEntity.badRequest().build();
+            ErrorResponse errorResponse = new ErrorResponse(
+                    "INVALID_ARGUMENT",
+                    "Unable to assign parent to pupil",
+                    HttpStatus.BAD_REQUEST.value(),
+                    "/api/pupils/" + pupilId + "/assign-parent/" + parentId
+            );
+            return ResponseEntity.badRequest().body(errorResponse);
         }
     }
     

@@ -1,0 +1,88 @@
+databaseChangeLog:
+  - changeSet:
+      id: 012-create-trip-student-checkin-table
+      author: sqoolbus
+      changes:
+        - createTable:
+            tableName: trip_student_checkin
+            columns:
+              - column:
+                  name: id
+                  type: BIGINT
+                  autoIncrement: true
+                  constraints:
+                    primaryKey: true
+                    nullable: false
+              - column:
+                  name: trip_id
+                  type: BIGINT
+                  constraints:
+                    nullable: false
+              - column:
+                  name: pupil_id
+                  type: BIGINT
+                  constraints:
+                    nullable: false
+              - column:
+                  name: checkin_time
+                  type: TIMESTAMP
+                  constraints:
+                    nullable: false
+              - column:
+                  name: created_at
+                  type: TIMESTAMP
+                  defaultValueComputed: CURRENT_TIMESTAMP
+                  constraints:
+                    nullable: false
+              - column:
+                  name: updated_at
+                  type: TIMESTAMP
+                  defaultValueComputed: CURRENT_TIMESTAMP
+              - column:
+                  name: created_by
+                  type: VARCHAR(100)
+              - column:
+                  name: modified_by
+                  type: VARCHAR(100)
+
+        - addForeignKeyConstraint:
+            baseTableName: trip_student_checkin
+            baseColumnNames: trip_id
+            constraintName: fk_trip_student_checkin_trip
+            referencedTableName: trip
+            referencedColumnNames: id
+            onDelete: CASCADE
+
+        - addForeignKeyConstraint:
+            baseTableName: trip_student_checkin
+            baseColumnNames: pupil_id
+            constraintName: fk_trip_student_checkin_pupil
+            referencedTableName: pupil
+            referencedColumnNames: id
+            onDelete: CASCADE
+
+        - createIndex:
+            indexName: idx_trip_student_checkin_trip_id
+            tableName: trip_student_checkin
+            columns:
+              - column:
+                  name: trip_id
+
+        - createIndex:
+            indexName: idx_trip_student_checkin_pupil_id
+            tableName: trip_student_checkin
+            columns:
+              - column:
+                  name: pupil_id
+
+        - createIndex:
+            indexName: idx_trip_student_checkin_time
+            tableName: trip_student_checkin
+            columns:
+              - column:
+                  name: checkin_time
+
+        - addUniqueConstraint:
+            tableName: trip_student_checkin
+            columnNames: trip_id, pupil_id
+            constraintName: uq_trip_student_checkin_trip_pupil

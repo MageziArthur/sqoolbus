@@ -1,6 +1,8 @@
 package com.sqool.sqoolbus.tenant.controller;
 
 import com.sqool.sqoolbus.dto.ErrorResponse;
+import com.sqool.sqoolbus.dto.ParentSignupResponse;
+import com.sqool.sqoolbus.dto.RiderSignupResponse;
 import com.sqool.sqoolbus.security.Permission;
 import com.sqool.sqoolbus.security.RequirePermissions;
 import com.sqool.sqoolbus.tenant.entity.User;
@@ -8,6 +10,8 @@ import com.sqool.sqoolbus.tenant.entity.hail.UserProfile;
 import com.sqool.sqoolbus.tenant.entity.hail.School;
 import com.sqool.sqoolbus.tenant.service.UserManagementService;
 import com.sqool.sqoolbus.tenant.service.SchoolService;
+import com.sqool.sqoolbus.service.MasterAuthService;
+import com.sqool.sqoolbus.service.TenantResolutionService;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.Parameter;
 import io.swagger.v3.oas.annotations.media.Content;
@@ -42,6 +46,12 @@ public class UserController {
     
     @Autowired
     private SchoolService schoolService;
+
+    @Autowired
+    private TenantResolutionService tenantResolutionService;
+
+    @Autowired
+    private MasterAuthService masterAuthService;
     
     @GetMapping
     @RequirePermissions(Permission.PERM_VIEW_USERS)
@@ -63,76 +73,82 @@ public class UserController {
     }
     
     @PostMapping("/parent")
-    @RequirePermissions(Permission.PERM_CREATE_USERS)
-    @Operation(summary = "Create a parent user", description = "Create a new parent user with associated profile")
+    @Operation(summary = "Create a parent user", description = "Create a new parent user in the master database. School assignment is optional for self-service signup.")
     @ApiResponses(value = {
         @ApiResponse(responseCode = "201", description = "Parent created successfully",
                     content = @Content(mediaType = "application/json", 
-                                     schema = @Schema(implementation = User.class))),
+                                     schema = @Schema(implementation = ParentSignupResponse.class))),
         @ApiResponse(responseCode = "400", description = "Invalid input data or school not found"),
         @ApiResponse(responseCode = "401", description = "Unauthorized"),
         @ApiResponse(responseCode = "403", description = "Forbidden"),
         @ApiResponse(responseCode = "500", description = "Internal server error")
     })
-    public ResponseEntity<User> createParent(
+    public ResponseEntity<com.sqool.sqoolbus.dto.ApiResponse<ParentSignupResponse>> createParent(
             @Parameter(description = "Parent creation data", required = true)
             @Valid @RequestBody CreateParentRequest request) {
         try {
-            Optional<School> school = schoolService.findById(request.getSchoolId());
-            if (!school.isPresent()) {
-                return ResponseEntity.badRequest().build();
+            String tenantId = null;
+            if (request.getSchoolId() != null) {
+                tenantId = tenantResolutionService.resolveTenantIdForSchool(request.getSchoolId());
+                if (tenantId == null) {
+                    return ResponseEntity.badRequest().body(com.sqool.sqoolbus.dto.ApiResponse.error("School not found"));
+                }
             }
-            
-            User parent = userManagementService.createParent(
+
+            ParentSignupResponse parent = masterAuthService.registerParentBasic(
                 request.getUsername(),
                 request.getEmail(),
                 request.getPassword(),
                 request.getFirstName(),
                 request.getLastName(),
-                school.get()
+                request.getSchoolId(),
+                tenantId
             );
-            
-            return ResponseEntity.status(HttpStatus.CREATED).body(parent);
+
+            return ResponseEntity.status(HttpStatus.CREATED)
+                .body(com.sqool.sqoolbus.dto.ApiResponse.success("Parent created successfully", parent));
         } catch (Exception e) {
-            return ResponseEntity.badRequest().build();
+            return ResponseEntity.badRequest().body(com.sqool.sqoolbus.dto.ApiResponse.error("Parent creation failed: " + e.getMessage()));
         }
     }
     
     @PostMapping("/rider")
-    @RequirePermissions(Permission.PERM_CREATE_USERS)
-    @Operation(summary = "Create a rider user", description = "Create a new rider user with driver profile")
+    @Operation(summary = "Create a rider user", description = "Create a new rider user in the master database. School assignment is optional for self-service signup. Tenant is resolved from school ID and the tenant header is ignored.")
     @ApiResponses(value = {
         @ApiResponse(responseCode = "201", description = "Rider created successfully",
                     content = @Content(mediaType = "application/json", 
-                                     schema = @Schema(implementation = User.class))),
+                                     schema = @Schema(implementation = RiderSignupResponse.class))),
         @ApiResponse(responseCode = "400", description = "Invalid input data or school not found"),
-        @ApiResponse(responseCode = "401", description = "Unauthorized"),
-        @ApiResponse(responseCode = "403", description = "Forbidden"),
         @ApiResponse(responseCode = "500", description = "Internal server error")
     })
-    public ResponseEntity<User> createRider(
+    public ResponseEntity<com.sqool.sqoolbus.dto.ApiResponse<RiderSignupResponse>> createRider(
             @Parameter(description = "Rider creation data", required = true)
             @Valid @RequestBody CreateRiderRequest request) {
         try {
-            Optional<School> school = schoolService.findById(request.getSchoolId());
-            if (!school.isPresent()) {
-                return ResponseEntity.badRequest().build();
+            String tenantId = null;
+            if (request.getSchoolId() != null) {
+                tenantId = tenantResolutionService.resolveTenantIdForSchool(request.getSchoolId());
+                if (tenantId == null) {
+                    return ResponseEntity.badRequest().body(com.sqool.sqoolbus.dto.ApiResponse.error("School not found"));
+                }
             }
-            
-            User rider = userManagementService.createRider(
+
+            RiderSignupResponse rider = masterAuthService.registerRiderBasic(
                 request.getUsername(),
                 request.getEmail(),
                 request.getPassword(),
                 request.getFirstName(),
                 request.getLastName(),
-                school.get(),
+                request.getSchoolId(),
                 request.getLicenseNumber(),
-                request.getEmployeeId()
+                request.getEmployeeId(),
+                tenantId
             );
-            
-            return ResponseEntity.status(HttpStatus.CREATED).body(rider);
+
+            return ResponseEntity.status(HttpStatus.CREATED)
+                .body(com.sqool.sqoolbus.dto.ApiResponse.success("Rider created successfully", rider));
         } catch (Exception e) {
-            return ResponseEntity.badRequest().build();
+            return ResponseEntity.badRequest().body(com.sqool.sqoolbus.dto.ApiResponse.error("Rider creation failed: " + e.getMessage()));
         }
     }
     
@@ -241,6 +257,7 @@ public class UserController {
         private String password;
         private String firstName;
         private String lastName;
+        @Schema(description = "Optional school ID for assignment", example = "1")
         private Long schoolId;
         
         // Getters and setters
@@ -269,6 +286,7 @@ public class UserController {
         private String password;
         private String firstName;
         private String lastName;
+        @Schema(hidden = true)
         private Long schoolId;
         private String licenseNumber;
         private String employeeId;

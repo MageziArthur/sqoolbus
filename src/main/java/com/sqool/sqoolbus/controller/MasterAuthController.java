@@ -3,7 +3,10 @@ package com.sqool.sqoolbus.controller;
 import com.sqool.sqoolbus.dto.ApiResponse;
 import com.sqool.sqoolbus.dto.MasterLoginRequest;
 import com.sqool.sqoolbus.dto.MasterLoginResponse;
+import com.sqool.sqoolbus.master.entity.ParentPupilMapping;
+import com.sqool.sqoolbus.master.repository.ParentPupilMappingRepository;
 import com.sqool.sqoolbus.service.MasterAuthService;
+import com.sqool.sqoolbus.service.TenantResolutionService;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.media.Content;
 import io.swagger.v3.oas.annotations.media.ExampleObject;
@@ -20,6 +23,7 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.validation.BindingResult;
 import org.springframework.web.bind.annotation.*;
 
+import java.util.List;
 import java.util.Map;
 import java.util.stream.Collectors;
 
@@ -32,6 +36,15 @@ public class MasterAuthController {
     
     @Autowired
     private MasterAuthService masterAuthService;
+    
+    @Autowired
+    private com.sqool.sqoolbus.master.service.CrossTenantService crossTenantService;
+
+    @Autowired
+    private TenantResolutionService tenantResolutionService;
+
+    @Autowired
+    private ParentPupilMappingRepository parentPupilMappingRepository;
     
     @Operation(
         summary = "Master System Login",
@@ -223,6 +236,488 @@ public class MasterAuthController {
         }
     }
     
+    @Operation(
+        summary = "Register Parent User (Master DB)",
+        description = "Register a new parent user in the master database with tenant association"
+    )
+    @ApiResponses(value = {
+        @io.swagger.v3.oas.annotations.responses.ApiResponse(
+            responseCode = "201", 
+            description = "Parent registration successful",
+            content = @Content(schema = @Schema(implementation = com.sqool.sqoolbus.dto.ParentSignupResponse.class))
+        ),
+        @io.swagger.v3.oas.annotations.responses.ApiResponse(
+            responseCode = "400", 
+            description = "Invalid input data or validation errors"
+        ),
+        @io.swagger.v3.oas.annotations.responses.ApiResponse(
+            responseCode = "409", 
+            description = "Username or email already exists"
+        ),
+        @io.swagger.v3.oas.annotations.responses.ApiResponse(
+            responseCode = "404", 
+            description = "Tenant not found"
+        )
+    })
+    @PostMapping("/signup/parent")
+    public ResponseEntity<ApiResponse<com.sqool.sqoolbus.dto.ParentSignupResponse>> registerParent(
+            @io.swagger.v3.oas.annotations.parameters.RequestBody(
+                description = "Parent registration details",
+                required = true,
+                content = @Content(
+                    schema = @Schema(implementation = com.sqool.sqoolbus.dto.ParentSignupRequest.class)
+                )
+            )
+            @Valid @RequestBody com.sqool.sqoolbus.dto.ParentSignupRequest parentSignupRequest,
+            @io.swagger.v3.oas.annotations.Parameter(
+                description = "Tenant identifier",
+                example = "default_sqool",
+                required = true
+            )
+            @RequestHeader(value = "X-Tenant-ID", required = true) String tenantId,
+            BindingResult bindingResult) {
+        
+        try {
+            // Check for validation errors
+            if (bindingResult.hasErrors()) {
+                String errors = bindingResult.getAllErrors().stream()
+                        .map(error -> error.getDefaultMessage())
+                        .collect(Collectors.joining(", "));
+                
+                logger.warn("Validation errors in parent signup: {}", errors);
+                return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(
+                        ApiResponse.error("Validation failed: " + errors)
+                );
+            }
+
+            logger.info("Processing parent signup request for user: {} on tenant: {}", 
+                       parentSignupRequest.getUsername(), tenantId);
+
+            // Register parent in master database
+            com.sqool.sqoolbus.dto.ParentSignupResponse signupResponse = masterAuthService.registerParent(parentSignupRequest, tenantId);
+
+            logger.info("Parent registered successfully: {}", parentSignupRequest.getUsername());
+            return ResponseEntity.status(HttpStatus.CREATED).body(
+                    ApiResponse.success("Parent registered successfully in master database", signupResponse)
+            );
+
+        } catch (Exception e) {
+            logger.error("Error in parent signup: {}", e.getMessage(), e);
+            return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(
+                    ApiResponse.error("Registration failed: " + e.getMessage())
+            );
+        }
+    }
+
+    @Operation(
+        summary = "Get All Kids for Parent",
+        description = "Get all pupils/kids owned by a parent across all tenant databases. Returns kids grouped by tenant."
+    )
+    @ApiResponses(value = {
+        @io.swagger.v3.oas.annotations.responses.ApiResponse(
+            responseCode = "200",
+            description = "Successfully retrieved kids"
+        ),
+        @io.swagger.v3.oas.annotations.responses.ApiResponse(
+            responseCode = "404",
+            description = "Parent not found"
+        ),
+        @io.swagger.v3.oas.annotations.responses.ApiResponse(
+            responseCode = "401",
+            description = "Unauthorized"
+        )
+    })
+    @GetMapping("/parent/{parentId}/kids")
+    public ResponseEntity<ApiResponse<Map<String, List<com.sqool.sqoolbus.master.service.CrossTenantService.PupilDTO>>>> getParentKids(
+            @io.swagger.v3.oas.annotations.Parameter(
+                description = "Parent user ID from master database",
+                example = "1",
+                required = true
+            )
+            @PathVariable Long parentId) {
+        
+        try {
+            logger.info("Fetching all kids for parent ID: {}", parentId);
+            
+            Map<String, List<com.sqool.sqoolbus.master.service.CrossTenantService.PupilDTO>> kids = 
+                    crossTenantService.getAllKidsForParentById(parentId);
+            
+            int totalKids = kids.values().stream().mapToInt(List::size).sum();
+            logger.info("Found {} kids across {} tenants for parent ID: {}", 
+                       totalKids, kids.size(), parentId);
+            
+            return ResponseEntity.ok(
+                ApiResponse.success(
+                    String.format("Found %d kids across %d tenants", totalKids, kids.size()),
+                    kids
+                )
+            );
+            
+        } catch (RuntimeException e) {
+            logger.error("Error fetching kids for parent {}: {}", parentId, e.getMessage());
+            return ResponseEntity.status(HttpStatus.NOT_FOUND).body(
+                ApiResponse.error("Parent not found or error retrieving kids: " + e.getMessage())
+            );
+        } catch (Exception e) {
+            logger.error("Unexpected error fetching kids for parent {}: {}", parentId, e.getMessage(), e);
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body(
+                ApiResponse.error("Error retrieving kids: " + e.getMessage())
+            );
+        }
+    }
+
+    @Operation(
+        summary = "Get All Students for Parent",
+        description = "Get all students belonging to a parent across all tenants as a single flattened list."
+    )
+    @ApiResponses(value = {
+        @io.swagger.v3.oas.annotations.responses.ApiResponse(
+            responseCode = "200",
+            description = "Successfully retrieved students"
+        ),
+        @io.swagger.v3.oas.annotations.responses.ApiResponse(
+            responseCode = "404",
+            description = "Parent not found"
+        ),
+        @io.swagger.v3.oas.annotations.responses.ApiResponse(
+            responseCode = "401",
+            description = "Unauthorized"
+        )
+    })
+    @GetMapping("/parent/{parentId}/students")
+    public ResponseEntity<ApiResponse<List<com.sqool.sqoolbus.master.service.CrossTenantService.PupilDTO>>> getParentStudents(
+            @io.swagger.v3.oas.annotations.Parameter(
+                description = "Parent user ID from master database",
+                example = "1",
+                required = true
+            )
+            @PathVariable Long parentId) {
+
+        try {
+            logger.info("Fetching all students for parent ID: {}", parentId);
+
+            Map<String, List<com.sqool.sqoolbus.master.service.CrossTenantService.PupilDTO>> kidsByTenant =
+                    crossTenantService.getAllKidsForParentById(parentId);
+
+            List<com.sqool.sqoolbus.master.service.CrossTenantService.PupilDTO> students = kidsByTenant.values()
+                    .stream()
+                    .flatMap(List::stream)
+                    .collect(Collectors.toList());
+
+            logger.info("Found {} students for parent ID: {}", students.size(), parentId);
+
+            return ResponseEntity.ok(
+                    ApiResponse.success(
+                            String.format("Found %d students", students.size()),
+                            students
+                    )
+            );
+
+        } catch (RuntimeException e) {
+            logger.error("Error fetching students for parent {}: {}", parentId, e.getMessage());
+            return ResponseEntity.status(HttpStatus.NOT_FOUND).body(
+                    ApiResponse.error("Parent not found or error retrieving students: " + e.getMessage())
+            );
+        } catch (Exception e) {
+            logger.error("Unexpected error fetching students for parent {}: {}", parentId, e.getMessage(), e);
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body(
+                    ApiResponse.error("Error retrieving students: " + e.getMessage())
+            );
+        }
+    }
+
+    @Operation(
+        summary = "Get Parent Students by School",
+        description = "Get all students belonging to a parent for a specific school. schoolId is resolved to tenant database configuration, then queried from master mappings."
+    )
+    @ApiResponses(value = {
+        @io.swagger.v3.oas.annotations.responses.ApiResponse(
+            responseCode = "200",
+            description = "Successfully retrieved students"
+        ),
+        @io.swagger.v3.oas.annotations.responses.ApiResponse(
+            responseCode = "404",
+            description = "Parent or school not found"
+        ),
+        @io.swagger.v3.oas.annotations.responses.ApiResponse(
+            responseCode = "401",
+            description = "Unauthorized"
+        )
+    })
+    @GetMapping("/parent/{parentId}/students/school/{schoolId}")
+    public ResponseEntity<ApiResponse<List<com.sqool.sqoolbus.master.service.CrossTenantService.PupilDTO>>> getParentStudentsBySchool(
+            @io.swagger.v3.oas.annotations.Parameter(description = "Parent user ID", example = "1", required = true)
+            @PathVariable Long parentId,
+            @io.swagger.v3.oas.annotations.Parameter(description = "School ID", example = "10", required = true)
+            @PathVariable Long schoolId) {
+
+        try {
+            String tenantId = tenantResolutionService.resolveTenantIdForSchool(schoolId);
+            if (tenantId == null || tenantId.isBlank()) {
+                return ResponseEntity.status(HttpStatus.NOT_FOUND).body(
+                        ApiResponse.error("School not found: " + schoolId)
+                );
+            }
+
+            List<ParentPupilMapping> mappings = parentPupilMappingRepository.findAllActiveByParentIdAndTenantId(parentId, tenantId);
+
+            List<com.sqool.sqoolbus.master.service.CrossTenantService.PupilDTO> students = mappings.stream()
+                    .map(mapping -> {
+                        com.sqool.sqoolbus.master.service.CrossTenantService.PupilDTO dto = new com.sqool.sqoolbus.master.service.CrossTenantService.PupilDTO();
+                        dto.setId(mapping.getPupilId());
+                        dto.setFirstName(mapping.getPupilFirstName());
+                        dto.setLastName(mapping.getPupilLastName());
+                        dto.setStudentId(mapping.getStudentId());
+                        dto.setGradeLevel(mapping.getGradeLevel());
+                        dto.setSchoolId(mapping.getSchoolId());
+                        dto.setSchoolName(mapping.getSchoolName());
+                        dto.setRouteId(mapping.getRouteId());
+                        dto.setRouteName(mapping.getRouteName());
+                        dto.setTenantId(mapping.getTenant().getTenantId());
+                        dto.setActive(Boolean.TRUE.equals(mapping.getIsActive()));
+                        return dto;
+                    })
+                    .collect(Collectors.toList());
+
+            return ResponseEntity.ok(ApiResponse.success(
+                    String.format("Found %d students for parent %d in school %d", students.size(), parentId, schoolId),
+                    students
+            ));
+
+        } catch (RuntimeException e) {
+            logger.error("Error fetching parent students by school. parentId={}, schoolId={}, error={}", parentId, schoolId, e.getMessage());
+            return ResponseEntity.status(HttpStatus.NOT_FOUND).body(
+                    ApiResponse.error("Parent not found or error retrieving students: " + e.getMessage())
+            );
+        } catch (Exception e) {
+            logger.error("Unexpected error fetching parent students by school", e);
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body(
+                    ApiResponse.error("Error retrieving students: " + e.getMessage())
+            );
+        }
+    }
+
+    @Operation(
+        summary = "Get Parent Students Grouped by School",
+        description = "Get all students belonging to a parent across all schools, grouped by school. Useful when a parent has children in multiple schools."
+    )
+    @ApiResponses(value = {
+        @io.swagger.v3.oas.annotations.responses.ApiResponse(
+            responseCode = "200",
+            description = "Successfully retrieved students grouped by school"
+        ),
+        @io.swagger.v3.oas.annotations.responses.ApiResponse(
+            responseCode = "404",
+            description = "Parent not found"
+        ),
+        @io.swagger.v3.oas.annotations.responses.ApiResponse(
+            responseCode = "401",
+            description = "Unauthorized"
+        )
+    })
+    @GetMapping("/parent/{parentId}/students/grouped-by-school")
+    public ResponseEntity<ApiResponse<Map<Long, List<com.sqool.sqoolbus.master.service.CrossTenantService.PupilDTO>>>> getParentStudentsGroupedBySchool(
+            @io.swagger.v3.oas.annotations.Parameter(
+                description = "Parent user ID from master database",
+                example = "1",
+                required = true
+            )
+            @PathVariable Long parentId) {
+
+        try {
+            logger.info("Fetching students grouped by school for parent ID: {}", parentId);
+
+            Map<String, List<com.sqool.sqoolbus.master.service.CrossTenantService.PupilDTO>> kidsByTenant =
+                    crossTenantService.getAllKidsForParentById(parentId);
+
+            List<com.sqool.sqoolbus.master.service.CrossTenantService.PupilDTO> allStudents = kidsByTenant.values()
+                    .stream()
+                    .flatMap(List::stream)
+                    .collect(Collectors.toList());
+
+            Map<Long, List<com.sqool.sqoolbus.master.service.CrossTenantService.PupilDTO>> studentsBySchool = allStudents.stream()
+                    .filter(student -> student.getSchoolId() != null)
+                    .collect(Collectors.groupingBy(
+                            com.sqool.sqoolbus.master.service.CrossTenantService.PupilDTO::getSchoolId,
+                            java.util.LinkedHashMap::new,
+                            Collectors.toList()
+                    ));
+
+            return ResponseEntity.ok(
+                    ApiResponse.success(
+                            String.format("Found %d students across %d schools", allStudents.size(), studentsBySchool.size()),
+                            studentsBySchool
+                    )
+            );
+
+        } catch (RuntimeException e) {
+            logger.error("Error fetching grouped students for parent {}: {}", parentId, e.getMessage());
+            return ResponseEntity.status(HttpStatus.NOT_FOUND).body(
+                    ApiResponse.error("Parent not found or error retrieving students: " + e.getMessage())
+            );
+        } catch (Exception e) {
+            logger.error("Unexpected error fetching grouped students for parent {}: {}", parentId, e.getMessage(), e);
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body(
+                    ApiResponse.error("Error retrieving students: " + e.getMessage())
+            );
+        }
+    }
+
+    @Operation(
+        summary = "Get Students by School",
+        description = "Get all students attached to a school from master parent-student mappings."
+    )
+    @ApiResponses(value = {
+        @io.swagger.v3.oas.annotations.responses.ApiResponse(
+            responseCode = "200",
+            description = "Successfully retrieved students"
+        ),
+        @io.swagger.v3.oas.annotations.responses.ApiResponse(
+            responseCode = "404",
+            description = "School not found"
+        ),
+        @io.swagger.v3.oas.annotations.responses.ApiResponse(
+            responseCode = "401",
+            description = "Unauthorized"
+        )
+    })
+    @GetMapping("/school/{schoolId}/students")
+    public ResponseEntity<ApiResponse<List<com.sqool.sqoolbus.master.service.CrossTenantService.PupilDTO>>> getStudentsBySchool(
+            @io.swagger.v3.oas.annotations.Parameter(description = "School ID", example = "10", required = true)
+            @PathVariable Long schoolId) {
+
+        try {
+            String tenantId = tenantResolutionService.resolveTenantIdForSchool(schoolId);
+            if (tenantId == null || tenantId.isBlank()) {
+                return ResponseEntity.status(HttpStatus.NOT_FOUND).body(
+                        ApiResponse.error("School not found: " + schoolId)
+                );
+            }
+
+            List<com.sqool.sqoolbus.master.service.CrossTenantService.PupilDTO> students =
+                    crossTenantService.getStudentsForSchoolInTenant(tenantId, schoolId);
+
+            return ResponseEntity.ok(ApiResponse.success(
+                    String.format("Found %d students attached to school %d", students.size(), schoolId),
+                    students
+            ));
+        } catch (Exception e) {
+            logger.error("Error fetching students by school. schoolId={}, error={}", schoolId, e.getMessage(), e);
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body(
+                    ApiResponse.error("Error retrieving students: " + e.getMessage())
+            );
+        }
+    }
+
+    @Operation(
+        summary = "Get All Schools for Driver",
+        description = "Get all schools assigned to a driver across all tenants as a single flattened list."
+    )
+    @ApiResponses(value = {
+        @io.swagger.v3.oas.annotations.responses.ApiResponse(
+            responseCode = "200",
+            description = "Successfully retrieved schools"
+        ),
+        @io.swagger.v3.oas.annotations.responses.ApiResponse(
+            responseCode = "404",
+            description = "Driver not found"
+        ),
+        @io.swagger.v3.oas.annotations.responses.ApiResponse(
+            responseCode = "401",
+            description = "Unauthorized"
+        )
+    })
+    @GetMapping("/driver/{driverId}/schools")
+    public ResponseEntity<ApiResponse<List<com.sqool.sqoolbus.master.service.CrossTenantService.DriverSchoolDTO>>> getDriverSchools(
+            @io.swagger.v3.oas.annotations.Parameter(
+                description = "Driver user ID from master database",
+                example = "15",
+                required = true
+            )
+            @PathVariable Long driverId) {
+
+        try {
+            logger.info("Fetching all schools for driver ID: {}", driverId);
+
+            Map<String, List<com.sqool.sqoolbus.master.service.CrossTenantService.DriverSchoolDTO>> schoolsByTenant =
+                    crossTenantService.getAllSchoolsForDriverById(driverId);
+
+            List<com.sqool.sqoolbus.master.service.CrossTenantService.DriverSchoolDTO> schools = schoolsByTenant.values()
+                    .stream()
+                    .flatMap(List::stream)
+                    .collect(Collectors.toList());
+
+            return ResponseEntity.ok(
+                    ApiResponse.success(
+                            String.format("Found %d school assignments", schools.size()),
+                            schools
+                    )
+            );
+        } catch (RuntimeException e) {
+            logger.error("Error fetching schools for driver {}: {}", driverId, e.getMessage());
+            return ResponseEntity.status(HttpStatus.NOT_FOUND).body(
+                    ApiResponse.error("Driver not found or error retrieving schools: " + e.getMessage())
+            );
+        } catch (Exception e) {
+            logger.error("Unexpected error fetching schools for driver {}: {}", driverId, e.getMessage(), e);
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body(
+                    ApiResponse.error("Error retrieving schools: " + e.getMessage())
+            );
+        }
+    }
+
+    @Operation(
+        summary = "Get Driver Schools Grouped by Tenant",
+        description = "Get all schools assigned to a driver across tenants, grouped by tenant."
+    )
+    @ApiResponses(value = {
+        @io.swagger.v3.oas.annotations.responses.ApiResponse(
+            responseCode = "200",
+            description = "Successfully retrieved grouped school assignments"
+        ),
+        @io.swagger.v3.oas.annotations.responses.ApiResponse(
+            responseCode = "404",
+            description = "Driver not found"
+        ),
+        @io.swagger.v3.oas.annotations.responses.ApiResponse(
+            responseCode = "401",
+            description = "Unauthorized"
+        )
+    })
+    @GetMapping("/driver/{driverId}/schools/grouped-by-tenant")
+    public ResponseEntity<ApiResponse<Map<String, List<com.sqool.sqoolbus.master.service.CrossTenantService.DriverSchoolDTO>>>> getDriverSchoolsGroupedByTenant(
+            @io.swagger.v3.oas.annotations.Parameter(
+                description = "Driver user ID from master database",
+                example = "15",
+                required = true
+            )
+            @PathVariable Long driverId) {
+
+        try {
+            logger.info("Fetching schools grouped by tenant for driver ID: {}", driverId);
+
+            Map<String, List<com.sqool.sqoolbus.master.service.CrossTenantService.DriverSchoolDTO>> schoolsByTenant =
+                    crossTenantService.getAllSchoolsForDriverById(driverId);
+
+            return ResponseEntity.ok(
+                    ApiResponse.success(
+                            String.format("Found school assignments across %d tenants", schoolsByTenant.size()),
+                            schoolsByTenant
+                    )
+            );
+        } catch (RuntimeException e) {
+            logger.error("Error fetching grouped schools for driver {}: {}", driverId, e.getMessage());
+            return ResponseEntity.status(HttpStatus.NOT_FOUND).body(
+                    ApiResponse.error("Driver not found or error retrieving schools: " + e.getMessage())
+            );
+        } catch (Exception e) {
+            logger.error("Unexpected error fetching grouped schools for driver {}: {}", driverId, e.getMessage(), e);
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body(
+                    ApiResponse.error("Error retrieving schools: " + e.getMessage())
+            );
+        }
+    }
+
     @Operation(
         summary = "Master Logout",
         description = "Logout from master system (client-side token removal)"

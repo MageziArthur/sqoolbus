@@ -24,6 +24,11 @@ public class TenantFilter extends OncePerRequestFilter {
     
     // Paths that should be excluded from tenant filtering
     private static final List<String> EXCLUDED_PATHS = Arrays.asList(
+        "/api/master",
+        "/api/users/parent",
+        "/api/users/rider",
+        "/api/tenants/register",
+        "/api/tenants/validate",
         "/swagger-ui",
         "/v3/api-docs",
         "/webjars",
@@ -42,7 +47,8 @@ public class TenantFilter extends OncePerRequestFilter {
     @Override
     protected boolean shouldNotFilter(HttpServletRequest request) {
         String requestPath = request.getRequestURI();
-        boolean shouldExclude = EXCLUDED_PATHS.stream().anyMatch(requestPath::startsWith);
+        boolean shouldExclude = EXCLUDED_PATHS.stream().anyMatch(requestPath::startsWith)
+                || requestPath.matches("^/api/tenants/[^/]+/setup$");
         if (shouldExclude) {
             logger.debug("Excluding path from tenant filtering: {}", requestPath);
         }

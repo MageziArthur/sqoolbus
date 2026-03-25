@@ -4,6 +4,7 @@ import com.sqool.sqoolbus.dto.ApiResponse;
 import com.sqool.sqoolbus.dto.TenantRegistrationRequest;
 import com.sqool.sqoolbus.dto.TenantRegistrationResponse;
 import com.sqool.sqoolbus.dto.TenantSetupResponse;
+import com.sqool.sqoolbus.dto.TenantSummaryResponse;
 import com.sqool.sqoolbus.service.TenantDataSourceService;
 import com.sqool.sqoolbus.service.TenantManagementService;
 import io.swagger.v3.oas.annotations.Operation;
@@ -24,6 +25,7 @@ import org.springframework.validation.BindingResult;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.HashMap;
+import java.util.List;
 import java.util.Map;
 import java.util.Set;
 import java.util.stream.Collectors;
@@ -222,6 +224,43 @@ public class TenantController {
             response.setPath(request.getRequestURI());
             
             return ResponseEntity.status(500).body(response);
+        }
+    }
+
+    @Operation(
+        summary = "Get All Tenants",
+        description = "Retrieve all tenants from the master database",
+        tags = {"Tenant Management"}
+    )
+    @ApiResponses(value = {
+        @io.swagger.v3.oas.annotations.responses.ApiResponse(
+            responseCode = "200",
+            description = "All tenants retrieved successfully",
+            content = @Content(
+                mediaType = "application/json",
+                schema = @Schema(implementation = ApiResponse.class),
+                examples = @ExampleObject(
+                    value = "{\"success\":true,\"message\":\"Tenants retrieved successfully\",\"data\":[{\"id\":1,\"tenantId\":\"default-sqool\",\"tenantName\":\"Default Sqool\",\"description\":\"Default tenant\",\"isActive\":true}]}"
+                )
+            )
+        )
+    })
+    @GetMapping
+    public ResponseEntity<ApiResponse<List<TenantSummaryResponse>>> getAllTenants(HttpServletRequest request) {
+        try {
+            List<TenantSummaryResponse> tenants = tenantManagementService.getAllTenants();
+
+            ApiResponse<List<TenantSummaryResponse>> response = ApiResponse.success("Tenants retrieved successfully", tenants);
+            response.setPath(request.getRequestURI());
+
+            return ResponseEntity.ok(response);
+        } catch (Exception e) {
+            logger.error("Error retrieving tenants", e);
+
+            ApiResponse<List<TenantSummaryResponse>> response = ApiResponse.error("Error retrieving tenants: " + e.getMessage());
+            response.setPath(request.getRequestURI());
+
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body(response);
         }
     }
     

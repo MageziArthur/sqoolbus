@@ -19,3 +19,7 @@ databaseChangeLog:
       file: db/changelog/tenant/009-alter-active-days-column.yml
   - include:
       file: db/changelog/tenant/010-alter-grade-level-column.yml
+  - include:
+      file: db/changelog/tenant/011-create-trip-trail-and-checkout-tables.yml
+  - include:
+      file: db/changelog/tenant/012-create-trip-student-checkin-table.yml

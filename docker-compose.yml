@@ -1,0 +1,47 @@
+services:
+  mysqlDB:
+    image: mysql:8.0
+    container_name: sqool-mysql
+    environment:
+      MYSQL_ROOT_PASSWORD: rootpassword
+    volumes:
+      - ./docker/mysql/init:/docker-entrypoint-initdb.d
+    ports:
+      - "3306:3306"
+    healthcheck:
+      test:
+        [
+          "CMD-SHELL",
+          "mysql -uroot -prootpassword -N -e \"SELECT COUNT(*) FROM information_schema.schemata WHERE schema_name IN ('sqoolbus_master','default_sqool')\" | grep -q '^2$'"
+        ]
+      interval: 5s
+      timeout: 10s
+      retries: 30
+      start_period: 15s
+
+  app:
+    image: sqool-app-2:latest
+    container_name: sqool-app
+    environment:
+      SPRING_PROFILES_ACTIVE: dev
+      SERVER_PORT: 8080
+      MASTER_DB_URL: jdbc:mysql://mysqlDB:3306/sqoolbus_master?useSSL=false&allowPublicKeyRetrieval=true&serverTimezone=UTC
+      MASTER_DB_USERNAME: root
+      MASTER_DB_PASSWORD: rootpassword
+      TENANT_DB_URL: jdbc:mysql://mysqlDB:3306/default_sqool?useSSL=false&allowPublicKeyRetrieval=true&serverTimezone=UTC
+      TENANT_DB_USERNAME: root
+      TENANT_DB_PASSWORD: rootpassword
+      SEE_TEST_DATA: "true"
+      JWT_SECRET: sqoolbus-secret-key-for-jwt-token-generation-must-be-at-least-256-bits-long
+      JAVA_OPTS: "-agentlib:jdwp=transport=dt_socket,server=y,suspend=n,address=*:5005"
+      DEFAULT_TENANT_ID: default_sqool
+      MASTER_SCHEMA: public
+      DRIVER: com.mysql.cj.jdbc.Driver
+      DB_HOST: mysqlDB
+      DB_PORT: 3306
+      MYSQL_MASTER_DB: sqoolbus_master
+      JWT_EXPIRATION: 86400
+    ports:
+      - "8080:8080"
+      - "5005:5005"
+    restart: unless-stopped
